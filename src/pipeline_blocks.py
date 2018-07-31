@@ -301,6 +301,7 @@ def classifier_sklearn(features,
 
 
 def feature_extraction(config, train_mode, suffix, **kwargs):
+    application_cleaned = _application_cleaning(config, train_mode, suffix, **kwargs)
     bureau_cleaned = _bureau_cleaning(config, **kwargs)
     bureau_balance_cleaned = _bureau_balance_cleaning(config, **kwargs)
     credit_card_balance_cleaned = _credit_card_balance_cleaning(config, **kwargs)
@@ -309,7 +310,12 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
     previous_application_cleaned = _previous_application_cleaning(config, **kwargs)
 
     if train_mode:
-        application, application_valid = _application(config, train_mode, suffix, **kwargs)
+        application, application_valid = _application(
+            application_cleaned,
+            config,
+            train_mode,
+            suffix,
+            **kwargs)
         bureau, bureau_valid = _bureau(
             bureau_cleaned,
             config,
@@ -342,12 +348,18 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
             **kwargs)
         previous_application, previous_application_valid = _previous_application(
             previous_application_cleaned,
+            application_cleaned,
             config,
             train_mode,
             suffix,
             **kwargs)
 
-        application_agg, application_agg_valid = _application_groupby_agg(config, train_mode, suffix, **kwargs)
+        application_agg, application_agg_valid = _application_groupby_agg(
+            application_cleaned,
+            config,
+            train_mode,
+            suffix,
+            **kwargs)
         bureau_agg, bureau_agg_valid = _bureau_groupby_agg(
             bureau_cleaned,
             config,
@@ -417,15 +429,20 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
 
         return feature_combiner, feature_combiner_valid
     else:
-        application = _application(config, train_mode, suffix, **kwargs)
+        application = _application(application_cleaned, config, train_mode, suffix, **kwargs)
         bureau = _bureau(bureau_cleaned, config, train_mode, suffix, **kwargs)
         bureau_balance = _bureau_balance(bureau_balance_cleaned, config, train_mode, suffix, **kwargs)
         credit_card_balance = _credit_card_balance(credit_card_balance_cleaned, config, train_mode, suffix, **kwargs)
         pos_cash_balance = _pos_cash_balance(pos_cash_balance_cleaned, config, train_mode, suffix, **kwargs)
-        previous_application = _previous_application(previous_application_cleaned, config, train_mode, suffix, **kwargs)
+        previous_application = _previous_application(previous_application_cleaned, application_cleaned, config, train_mode, suffix, **kwargs)
         installment_payments = _installment_payments(installment_payments_cleaned, config, train_mode, suffix, **kwargs)
 
-        application_agg = _application_groupby_agg(config, train_mode, suffix, **kwargs)
+        application_agg = _application_groupby_agg(
+            application_cleaned,
+            config,
+            train_mode,
+            suffix,
+            **kwargs)
         bureau_agg = _bureau_groupby_agg(
             bureau_cleaned,
             config,
@@ -750,11 +767,9 @@ def _categorical_encoders(config, train_mode, suffix, **kwargs):
         return categorical_encoder
 
 
-def _application_groupby_agg(config, train_mode, suffix, **kwargs):
+def _application_groupby_agg(application_cleaning, config, train_mode, suffix, **kwargs):
     if train_mode:
-        application_cleaning, application_cleaning_valid = _application_cleaning(config, train_mode, suffix, **kwargs)
-    else:
-        application_cleaning = _application_cleaning(config, train_mode, suffix, **kwargs)
+        application_cleaning, application_cleaning_valid = application_cleaning
 
     application_groupby_agg = Step(name='application_groupby_agg{}'.format(suffix),
                                    transformer=fe.GroupbyAggregateDiffs(**config.applications.aggregations),
@@ -958,11 +973,9 @@ def _application_cleaning(config, train_mode, suffix, **kwargs):
         return application_cleaning
 
 
-def _application(config, train_mode, suffix, **kwargs):
+def _application(application_cleaning, config, train_mode, suffix, **kwargs):
     if train_mode:
-        application_cleaning, application_cleaning_valid = _application_cleaning(config, train_mode, suffix, **kwargs)
-    else:
-        application_cleaning = _application_cleaning(config, train_mode, suffix, **kwargs)
+        application_cleaning, application_cleaning_valid = application_cleaning
 
     application = Step(name='application_hand_crafted{}'.format(suffix),
                        transformer=fe.ApplicationFeatures(**config.applications.columns),
@@ -1169,14 +1182,19 @@ def _previous_application_cleaning(config, **kwargs):
     return previous_application_cleaning
 
 
-def _previous_application(previous_application_cleaned, config, train_mode, suffix, **kwargs):
+def _previous_application(previous_application_cleaned, application_cleaned, config, train_mode, suffix, **kwargs):
+    if train_mode:
+        application_cleaned, application_cleaned_valid = application_cleaned
+
     previous_applications_hand_crafted = Step(name='previous_applications_hand_crafted',
                                               transformer=fe.PreviousApplicationFeatures(
                                                   **config.previous_applications),
-                                              input_steps=[previous_application_cleaned],
+                                              input_steps=[previous_application_cleaned
+                                                           application_cleaned],
                                               adapter=Adapter(
                                                   {'prev_applications': E(previous_application_cleaned.name,
-                                                                          'previous_application')}),
+                                                                          'previous_application'),
+                                                   'applications': E(application_cleaned.name, 'application')}),
                                               experiment_directory=config.pipeline.experiment_directory,
                                               **kwargs)
 
