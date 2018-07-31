@@ -345,7 +345,7 @@ SOLUTION_CONFIG = AttrDict({
     'previous_applications': {'table_name': 'previous_application',
                               'id_columns': ('SK_ID_CURR', 'SK_ID_CURR'),
                               'groupby_aggregations': PREVIOUS_APPLICATION_AGGREGATION_RECIPIES,
-                              'numbers_of_applications': [1, 2, 3, 4, 5],
+                              'numbers_of_applications': parameter_eval(params.previous_applications__last_k_credits),
                               'num_workers': params.num_workers
                               },
 
