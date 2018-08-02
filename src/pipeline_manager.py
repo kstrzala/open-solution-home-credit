@@ -128,7 +128,7 @@ def predict(pipeline_name, dev_mode, submit_predictions):
     test_data = {'main_table': {'X': tables.test_set,
                                 'y': None,
                                 },
-                 'application': {'X': tables.application},
+                 'application': {'X': tables.application_test},
                  'bureau_balance': {'X': tables.bureau_balance},
                  'bureau': {'X': tables.bureau},
                  'credit_card_balance': {'X': tables.credit_card_balance},
@@ -401,8 +401,8 @@ def _read_data(dev_mode, read_train=True, read_test=False):
 
     application_train = pd.read_csv(params.train_filepath, nrows=nrows)
     application_test = pd.read_csv(params.test_filepath, nrows=nrows)
-    raw_data['application'] = pd.concat([application_train, application_test],
-                                        sort=False).drop(cfg.TARGET_COLUMNS, axis='columns')
+    raw_data['application'] = application_train.drop(cfg.TARGET_COLUMNS, axis='columns')
+    raw_data['application_test'] = application_test
     if read_train:
         raw_data['train_set'] = pd.DataFrame(application_train[cfg.ID_COLUMNS + cfg.TARGET_COLUMNS])
     if read_test:
@@ -437,7 +437,7 @@ def _fold_fit_evaluate_predict_loop(train_data_split, valid_data_split, tables, 
         test_data = {'main_table': {'X': tables.test_set,
                                     'y': None,
                                     },
-                     'application': {'X': tables.application},
+                     'application': {'X': tables.application_test},
                      'bureau_balance': {'X': tables.bureau_balance},
                      'bureau': {'X': tables.bureau},
                      'credit_card_balance': {'X': tables.credit_card_balance},
