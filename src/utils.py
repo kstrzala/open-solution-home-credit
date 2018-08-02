@@ -156,3 +156,10 @@ def safe_div(a, b):
         return float(a) / float(b)
     except:
         return 0.0
+
+
+def split_table(table, ref_tables, id_column):
+    tables = []
+    for ref_table in ref_tables:
+        tables.append(table[table.id_column.isin(ref_table.id_column)])
+    return tables

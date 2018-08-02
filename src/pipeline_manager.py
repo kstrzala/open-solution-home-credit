@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
 from . import pipeline_config as cfg
 from .pipelines import PIPELINES
 from .utils import init_logger, read_params, set_seed, create_submission, verify_submission, calculate_rank, \
-    read_oof_predictions
+    read_oof_predictions, split_table
 
 set_seed(cfg.RANDOM_SEED)
 logger = init_logger()
@@ -51,6 +51,29 @@ def train(pipeline_name, dev_mode):
                                                           random_state=cfg.RANDOM_SEED,
                                                           shuffle=params.shuffle)
 
+    bureau, bureau_valid = split_table(tables.bureau, train_data_split, valid_data_split, cfg.ID_COLUMNS[0])
+    bureau_balance, bureau_balance_valid = split_table(tables.bureau_balance,
+                                                       train_data_split,
+                                                       valid_data_split,
+                                                       cfg.ID_COLUMNS[0])
+    credit_card_balance, credit_card_balance_valid = split_table(tables.credit_card_balance,
+                                                                 train_data_split,
+                                                                 valid_data_split,
+                                                                 cfg.ID_COLUMNS[0])
+    previous_application, previous_application_valid = split_table(tables.previous_application,
+                                                                   train_data_split,
+                                                                   valid_data_split,
+                                                                   cfg.ID_COLUMNS[0])
+    installments_payments, installments_payments_valid = split_table(tables.installments_payments,
+                                                                     train_data_split,
+                                                                     valid_data_split,
+                                                                     cfg.ID_COLUMNS[0])
+    pos_cash_balance, pos_cash_balance_valid = split_table(tables.pos_cash_balance,
+                                                           train_data_split,
+                                                           valid_data_split,
+                                                           cfg.ID_COLUMNS[0])
+
+
     logger.info('Target mean in train: {}'.format(train_data_split[cfg.TARGET_COLUMNS].mean()))
     logger.info('Target mean in valid: {}'.format(valid_data_split[cfg.TARGET_COLUMNS].mean()))
     logger.info('Train shape: {}'.format(train_data_split.shape))
@@ -61,12 +84,19 @@ def train(pipeline_name, dev_mode):
                                   'X_valid': valid_data_split.drop(cfg.TARGET_COLUMNS, axis=1),
                                   'y_valid': valid_data_split[cfg.TARGET_COLUMNS].values.reshape(-1)
                                   },
-                  'bureau_balance': {'X': tables.bureau_balance},
-                  'bureau': {'X': tables.bureau},
-                  'credit_card_balance': {'X': tables.credit_card_balance},
-                  'installments_payments': {'X': tables.installments_payments},
-                  'pos_cash_balance': {'X': tables.pos_cash_balance},
-                  'previous_application': {'X': tables.previous_application},
+                  'bureau_balance': {'X': bureau_balance,
+                                     'X_valid': bureau_balance_valid
+                                     },
+                  'bureau': {'X': bureau,
+                             'X_valid': bureau_valid},
+                  'credit_card_balance': {'X': credit_card_balance,
+                                          'X_valid': credit_card_balance_valid},
+                  'installments_payments': {'X': installments_payments,
+                                            'X_valid': installments_payments_valid},
+                  'pos_cash_balance': {'X': pos_cash_balance,
+                                       'X_valid': pos_cash_balance_valid},
+                  'previous_application': {'X': previous_application,
+                                           'X_valid': previous_application_valid},
                   }
 
     pipeline = PIPELINES[pipeline_name](config=cfg.SOLUTION_CONFIG, train_mode=True)
@@ -88,6 +118,13 @@ def evaluate(pipeline_name, dev_mode):
                                            random_state=cfg.RANDOM_SEED,
                                            shuffle=params.shuffle)
 
+    bureau_valid = split_table(tables.bureau, valid_data_split, cfg.ID_COLUMNS[0])
+    bureau_balance_valid = split_table(tables.bureau_balance, valid_data_split, cfg.ID_COLUMNS[0])
+    credit_card_balance_valid = split_table(tables.credit_card_balance, valid_data_split, cfg.ID_COLUMNS[0])
+    previous_application_valid = split_table(tables.previous_application, valid_data_split, cfg.ID_COLUMNS[0])
+    installments_payments_valid = split_table(tables.installments_payments, valid_data_split, cfg.ID_COLUMNS[0])
+    pos_cash_balance_valid = split_table(tables.pos_cash_balance, valid_data_split, cfg.ID_COLUMNS[0])
+
     logger.info('Target mean in valid: {}'.format(valid_data_split[cfg.TARGET_COLUMNS].mean()))
     logger.info('Valid shape: {}'.format(valid_data_split.shape))
 
@@ -96,12 +133,12 @@ def evaluate(pipeline_name, dev_mode):
     eval_data = {'application': {'X': valid_data_split.drop(cfg.TARGET_COLUMNS, axis=1),
                                  'y': None,
                                  },
-                 'bureau_balance': {'X': tables.bureau_balance},
-                 'bureau': {'X': tables.bureau},
-                 'credit_card_balance': {'X': tables.credit_card_balance},
-                 'installments_payments': {'X': tables.installments_payments},
-                 'pos_cash_balance': {'X': tables.pos_cash_balance},
-                 'previous_application': {'X': tables.previous_application},
+                 'bureau_balance': {'X': bureau_balance_valid},
+                 'bureau': {'X': bureau_valid},
+                 'credit_card_balance': {'X': credit_card_balance_valid},
+                 'installments_payments': {'X': installments_payments_valid},
+                 'pos_cash_balance': {'X': pos_cash_balance_valid},
+                 'previous_application': {'X': previous_application_valid},
                  }
 
     pipeline = PIPELINES[pipeline_name](config=cfg.SOLUTION_CONFIG, train_mode=False)
@@ -123,15 +160,22 @@ def predict(pipeline_name, dev_mode, submit_predictions):
 
     tables = _read_data(dev_mode, read_train=False, read_test=True)
 
+    bureau_test = split_table(tables.bureau, tables.application_test, cfg.ID_COLUMNS[0])
+    bureau_balance_test = split_table(tables.bureau_balance, tables.application_test, cfg.ID_COLUMNS[0])
+    credit_card_balance_test = split_table(tables.credit_card_balance, tables.application_test, cfg.ID_COLUMNS[0])
+    previous_application_test = split_table(tables.previous_application, tables.application_test, cfg.ID_COLUMNS[0])
+    installments_payments_test = split_table(tables.installments_payments, tables.application_test, cfg.ID_COLUMNS[0])
+    pos_cash_balance_test = split_table(tables.pos_cash_balance, tables.application_test, cfg.ID_COLUMNS[0])
+
     test_data = {'application': {'X': tables.application_test,
                                  'y': None,
                                  },
-                 'bureau_balance': {'X': tables.bureau_balance},
-                 'bureau': {'X': tables.bureau},
-                 'credit_card_balance': {'X': tables.credit_card_balance},
-                 'installments_payments': {'X': tables.installments_payments},
-                 'pos_cash_balance': {'X': tables.pos_cash_balance},
-                 'previous_application': {'X': tables.previous_application},
+                 'bureau_balance': {'X': bureau_balance_test},
+                 'bureau': {'X': bureau_test},
+                 'credit_card_balance': {'X': credit_card_balance_test},
+                 'installments_payments': {'X': installments_payments_test},
+                 'pos_cash_balance': {'X': pos_cash_balance_test},
+                 'previous_application': {'X': previous_application_test},
                  }
 
     pipeline = PIPELINES[pipeline_name](config=cfg.SOLUTION_CONFIG, train_mode=False)
@@ -428,15 +472,23 @@ def _fold_fit_evaluate_predict_loop(train_data_split, valid_data_split, tables, 
     score, y_valid_pred, pipeline = _fold_fit_evaluate_loop(train_data_split, valid_data_split, tables,
                                                             fold_id, pipeline_name, model_level)
     if model_level == 'first':
+        bureau_test = split_table(tables.bureau, tables.application_test, cfg.ID_COLUMNS[0])
+        bureau_balance_test = split_table(tables.bureau_balance, tables.application_test, cfg.ID_COLUMNS[0])
+        credit_card_balance_test = split_table(tables.credit_card_balance, tables.application_test, cfg.ID_COLUMNS[0])
+        previous_application_test = split_table(tables.previous_application, tables.application_test, cfg.ID_COLUMNS[0])
+        installments_payments_test = split_table(tables.installments_payments, tables.application_test,
+                                                 cfg.ID_COLUMNS[0])
+        pos_cash_balance_test = split_table(tables.pos_cash_balance, tables.application_test, cfg.ID_COLUMNS[0])
+
         test_data = {'application': {'X': tables.application_test,
                                      'y': None,
                                      },
-                     'bureau_balance': {'X': tables.bureau_balance},
-                     'bureau': {'X': tables.bureau},
-                     'credit_card_balance': {'X': tables.credit_card_balance},
-                     'installments_payments': {'X': tables.installments_payments},
-                     'pos_cash_balance': {'X': tables.pos_cash_balance},
-                     'previous_application': {'X': tables.previous_application},
+                     'bureau_balance': {'X': bureau_balance_test},
+                     'bureau': {'X': bureau_test},
+                     'credit_card_balance': {'X': credit_card_balance_test},
+                     'installments_payments': {'X': installments_payments_test},
+                     'pos_cash_balance': {'X': pos_cash_balance_test},
+                     'previous_application': {'X': previous_application_test},
                      }
     elif model_level == 'second':
         test_data = {'input': {'X': tables.drop(cfg.ID_COLUMNS, axis=1),
