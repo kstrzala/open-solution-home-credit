@@ -523,28 +523,57 @@ def _fold_fit_evaluate_predict_loop(train_data_split, valid_data_split, tables, 
 
 def _fold_fit_evaluate_loop(train_data_split, valid_data_split, tables, fold_id, pipeline_name, model_level):
     if model_level == 'first':
+        bureau, bureau_valid = split_table(tables.bureau, train_data_split, valid_data_split, cfg.ID_COLUMNS[0])
+        bureau_balance, bureau_balance_valid = split_table(tables.bureau_balance,
+                                                           train_data_split,
+                                                           valid_data_split,
+                                                           cfg.ID_COLUMNS[0])
+        credit_card_balance, credit_card_balance_valid = split_table(tables.credit_card_balance,
+                                                                     train_data_split,
+                                                                     valid_data_split,
+                                                                     cfg.ID_COLUMNS[0])
+        previous_application, previous_application_valid = split_table(tables.previous_application,
+                                                                       train_data_split,
+                                                                       valid_data_split,
+                                                                       cfg.ID_COLUMNS[0])
+        installments_payments, installments_payments_valid = split_table(tables.installments_payments,
+                                                                         train_data_split,
+                                                                         valid_data_split,
+                                                                         cfg.ID_COLUMNS[0])
+        pos_cash_balance, pos_cash_balance_valid = split_table(tables.pos_cash_balance,
+                                                               train_data_split,
+                                                               valid_data_split,
+                                                               cfg.ID_COLUMNS[0])
+
         train_data = {'application': {'X': train_data_split.drop(cfg.TARGET_COLUMNS, axis=1),
                                       'y': train_data_split[cfg.TARGET_COLUMNS].values.reshape(-1),
                                       'X_valid': valid_data_split.drop(cfg.TARGET_COLUMNS, axis=1),
-                                      'y_valid': valid_data_split[cfg.TARGET_COLUMNS].values.reshape(-1),
+                                      'y_valid': valid_data_split[cfg.TARGET_COLUMNS].values.reshape(-1)
                                       },
-                      'bureau_balance': {'X': tables.bureau_balance},
-                      'bureau': {'X': tables.bureau},
-                      'credit_card_balance': {'X': tables.credit_card_balance},
-                      'installments_payments': {'X': tables.installments_payments},
-                      'pos_cash_balance': {'X': tables.pos_cash_balance},
-                      'previous_application': {'X': tables.previous_application},
+                      'bureau_balance': {'X': bureau_balance,
+                                         'X_valid': bureau_balance_valid
+                                         },
+                      'bureau': {'X': bureau,
+                                 'X_valid': bureau_valid},
+                      'credit_card_balance': {'X': credit_card_balance,
+                                              'X_valid': credit_card_balance_valid},
+                      'installments_payments': {'X': installments_payments,
+                                                'X_valid': installments_payments_valid},
+                      'pos_cash_balance': {'X': pos_cash_balance,
+                                           'X_valid': pos_cash_balance_valid},
+                      'previous_application': {'X': previous_application,
+                                               'X_valid': previous_application_valid},
                       }
 
         valid_data = {'application': {'X': valid_data_split.drop(cfg.TARGET_COLUMNS, axis=1),
                                       'y': None,
                                       },
-                      'bureau_balance': {'X': tables.bureau_balance},
-                      'bureau': {'X': tables.bureau},
-                      'credit_card_balance': {'X': tables.credit_card_balance},
-                      'installments_payments': {'X': tables.installments_payments},
-                      'pos_cash_balance': {'X': tables.pos_cash_balance},
-                      'previous_application': {'X': tables.previous_application},
+                      'bureau_balance': {'X': bureau_balance_valid},
+                      'bureau': {'X': bureau_valid},
+                      'credit_card_balance': {'X': credit_card_balance_valid},
+                      'installments_payments': {'X': installments_payments_valid},
+                      'pos_cash_balance': {'X': pos_cash_balance_valid},
+                      'previous_application': {'X': previous_application_valid},
                       }
     elif model_level == 'second':
         drop_columns = cfg.TARGET_COLUMNS + ['fold_id']
