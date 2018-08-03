@@ -828,8 +828,6 @@ class PreviousApplicationFeatures(BasicHandCraftedFeatures):
         return features.reset_index()
 
 
-
-
     @staticmethod
     def get_categorical_features():
         pass
