@@ -753,35 +753,17 @@ class PreviousApplicationFeatures(BasicHandCraftedFeatures):
         super().__init__(num_workers=num_workers)
         self.numbers_of_applications = numbers_of_applications
 
-    def fit(self, prev_applications, applications, **kwargs):
-        applications_copy = applications[[col for col in applications.columns
-                                            if col in prev_applications.columns]].copy()
-        prev_applications_merged = prev_applications.merge(applications_copy, on='SK_ID_CURR', how='left')
-
-        features = pd.DataFrame({'SK_ID_CURR': prev_applications['SK_ID_CURR'].unique()})
-
-        prev_app_sorted = prev_applications_merged.sort_values(['SK_ID_CURR', 'DAYS_DECISION'])
+    def fit(self, previous_application, **kwargs):
+        features = pd.DataFrame({'SK_ID_CURR': previous_application['SK_ID_CURR'].unique()})
+        prev_app_sorted = previous_application.sort_values(['SK_ID_CURR', 'DAYS_DECISION'])
 
         prev_app_sorted['approved'] = (prev_app_sorted['NAME_CONTRACT_STATUS'] == 'Approved').astype('int')
         prev_app_sorted['refused'] = (prev_app_sorted['NAME_CONTRACT_STATUS'] == 'Refused').astype('int')
         prev_app_sorted['revolving_loan'] = (prev_app_sorted['NAME_CONTRACT_TYPE'] == 'Revolving loans').astype('int')
-        prev_app_sorted['annuity_diff'] = prev_app_sorted['AMT_ANNUITY_y'] - prev_app_sorted['AMT_ANNUITY_x']
-        prev_app_sorted['annuity_ratio'] = prev_app_sorted['AMT_ANNUITY_y'] / prev_app_sorted['AMT_ANNUITY_x']
-        prev_app_sorted['credit_diff'] = prev_app_sorted['AMT_CREDIT_y'] - prev_app_sorted['AMT_CREDIT_x']
-        prev_app_sorted['credit_ratio'] = prev_app_sorted['AMT_CREDIT_y'] / prev_app_sorted['AMT_CREDIT_x']
-        prev_app_sorted['credit_goods_diff'] = prev_app_sorted['AMT_CREDIT_x'] - prev_app_sorted['AMT_GOODS_PRICE_x']
-        prev_app_sorted['credit_goods_ratio'] = prev_app_sorted['AMT_CREDIT_x'] / prev_app_sorted['AMT_GOODS_PRICE_x']
-        prev_app_sorted['application_credit_diff'] = prev_app_sorted['AMT_APPLICATION'] - prev_app_sorted['AMT_CREDIT_x']
-        prev_app_sorted['application_credit_ratio'] = prev_app_sorted['AMT_APPLICATION'] / prev_app_sorted['AMT_CREDIT_x']
-        prev_app_sorted['the_same_contract_type'] = (
-                    prev_app_sorted['NAME_CONTRACT_TYPE_x'] == prev_app_sorted['NAME_CONTRACT_TYPE_y']).astype(int)
-        prev_app_sorted['the_same_weekday'] = (prev_app_sorted['WEEKDAY_APPR_PROCESS_START_x'] == prev_app_sorted[
-            'WEEKDAY_APPR_PROCESS_START_y']).astype(int)
-        prev_app_sorted['hour_diff'] = prev_app_sorted['HOUR_APPR_PROCESS_START_x'] - prev_app_sorted[
-            'HOUR_APPR_PROCESS_START_y']
-        prev_app_sorted['the_same_type_suite'] = (
-                prev_app_sorted['NAME_TYPE_SUITE_x'] == prev_app_sorted['NAME_TYPE_SUITE_y']).astype(int)
-        prev_app_sorted['the_same_type_suite'][prev_app_sorted['NAME_TYPE_SUITE_x'].isnull()] = 1
+        prev_app_sorted['credit_goods_diff'] = prev_app_sorted['AMT_CREDIT'] - prev_app_sorted['AMT_GOODS_PRICE']
+        prev_app_sorted['credit_goods_ratio'] = prev_app_sorted['AMT_CREDIT'] / prev_app_sorted['AMT_GOODS_PRICE']
+        prev_app_sorted['application_credit_diff'] = prev_app_sorted['AMT_APPLICATION'] - prev_app_sorted['AMT_CREDIT']
+        prev_app_sorted['application_credit_ratio'] = prev_app_sorted['AMT_APPLICATION'] / prev_app_sorted['AMT_CREDIT']
 
         prev_app_sorted_groupby = prev_app_sorted.groupby(by=['SK_ID_CURR'])
 
@@ -810,9 +792,8 @@ class PreviousApplicationFeatures(BasicHandCraftedFeatures):
         features = pd.DataFrame(prev_app_sorted['SK_ID_CURR'].unique()).set_index('SK_ID_CURR')
 
         feature_list = ['CNT_PAYMENT', 'DAYS_DECISION', 'DAYS_FIRST_DRAWING', 'approved', 'refused', 'revolving_loan',
-                        'annuity_diff', 'annuity_ratio', 'credit_diff', 'credit_ratio', 'credit_goods_diff',
-                        'credit_goods_ratio', 'application_credit_diff', 'application_credit_ratio',
-                        'the_same_contract_type', 'the_same_type_suite', 'the_same_weekday', 'hour_diff']
+                        'credit_goods_diff', 'credit_goods_ratio', 'application_credit_diff',
+                        'application_credit_ratio']
 
         for number in numbers_of_applications:
             prev_applications_tail = prev_app_sorted.groupby('SK_ID_CURR').tail(number)
@@ -827,10 +808,68 @@ class PreviousApplicationFeatures(BasicHandCraftedFeatures):
 
         return features.reset_index()
 
+    @staticmethod
+    def get_categorical_features():
+        pass
+
+
+class ApplicationPreviousApplicationFeatures(BaseTransformer):
+    def transform(self, application, previous_application, **kwargs):
+        features = pd.DataFrame({'SK_ID_CURR': previous_application['SK_ID_CURR'].unique()})
+        applications_copy = application[[col for col in application.columns
+                                          if col in previous_application.columns]].copy()
+
+        prev_application_merged = previous_application[applications_copy.columns.tolist() + ['DAYS_DECISION']].merge(
+            applications_copy, on='SK_ID_CURR', how='left')
+        prev_app_sorted = prev_application_merged.sort_values(['SK_ID_CURR', 'DAYS_DECISION'])
+
+        prev_app_sorted['annuity_diff'] = prev_app_sorted['AMT_ANNUITY_y'] - prev_app_sorted['AMT_ANNUITY_x']
+        prev_app_sorted['annuity_ratio'] = prev_app_sorted['AMT_ANNUITY_y'] / prev_app_sorted['AMT_ANNUITY_x']
+        prev_app_sorted['credit_diff'] = prev_app_sorted['AMT_CREDIT_y'] - prev_app_sorted['AMT_CREDIT_x']
+        prev_app_sorted['credit_ratio'] = prev_app_sorted['AMT_CREDIT_y'] / prev_app_sorted['AMT_CREDIT_x']
+
+        prev_app_sorted['the_same_contract_type'] = (
+                prev_app_sorted['NAME_CONTRACT_TYPE_x'] == prev_app_sorted['NAME_CONTRACT_TYPE_y']).astype(int)
+        prev_app_sorted['the_same_weekday'] = (prev_app_sorted['WEEKDAY_APPR_PROCESS_START_x'] == prev_app_sorted['WEEKDAY_APPR_PROCESS_START_y']).astype(int)
+        prev_app_sorted['hour_diff'] = prev_app_sorted['HOUR_APPR_PROCESS_START_x'] - prev_app_sorted['HOUR_APPR_PROCESS_START_y']
+        prev_app_sorted['the_same_type_suite'] = (
+                prev_app_sorted['NAME_TYPE_SUITE_x'] == prev_app_sorted['NAME_TYPE_SUITE_y']).astype(int)
+        prev_app_sorted['the_same_type_suite'][prev_app_sorted['NAME_TYPE_SUITE_x'].isnull()] = 1
+
+        g = ApplicationPreviousApplicationFeatures.get_last_k_credits_features(prev_app_sorted,
+                                                                    numbers_of_applications=self.numbers_of_applications)
+        features = features.merge(g, on=['SK_ID_CURR'], how='left')
+
+        self.features = features
+        return {'numerical_features': self.features}
+
+    @staticmethod
+    def get_last_k_credits_features(prev_app_sorted, numbers_of_applications):
+        def _get_last_k_applications_feature_name(self, feature_name, number, suffix):
+            return 'application_previous_application_{}_last_{}_applications_{}'.format(feature_name, number, suffix)
+
+        features = pd.DataFrame(prev_app_sorted['SK_ID_CURR'].unique()).set_index('SK_ID_CURR')
+
+        feature_list = ['annuity_diff', 'annuity_ratio', 'credit_diff', 'credit_ratio', 'the_same_contract_type',
+                        'the_same_type_suite', 'the_same_weekday', 'hour_diff']
+
+        for number in numbers_of_applications:
+            prev_applications_tail = prev_app_sorted.groupby('SK_ID_CURR').tail(number)
+            tail_groupby = prev_applications_tail.groupby(by=['SK_ID_CURR'])
+            g = tail_groupby[feature_list].agg('mean').reset_index()
+
+            g.rename(axis='columns',
+                     mapper=partial(_get_last_k_applications_feature_name, number=number, suffix='mean'),
+                     inplace=True)
+
+            features.merge(g, how='left', left_index=True, right_index=True)
+
+        return features.reset_index()
 
     @staticmethod
     def get_categorical_features():
         pass
+
 
 
 class InstallmentPaymentsFeatures(BasicHandCraftedFeatures):
