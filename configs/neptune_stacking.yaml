@@ -62,6 +62,8 @@ parameters:
   bureau_balance__last_k_trend_periods: None
   bureau_balance__last_k_agg_periods: None
   bureau_balance__last_k_agg_period_fractions: None
+  previous_applications__last_k_credits: None
+  application_previous_application__last_k_credits: None
   application_aggregation__use_diffs_only: True
   use_nan_count: True
 

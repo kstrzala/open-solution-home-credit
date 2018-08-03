@@ -348,7 +348,13 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
             **kwargs)
         previous_application, previous_application_valid = _previous_application(
             previous_application_cleaned,
+            config,
+            train_mode,
+            suffix,
+            **kwargs)
+        application_previous_application, application_previous_application_valid = _application_previous_application(
             application_cleaned,
+            previous_application_cleaned,
             config,
             train_mode,
             suffix,
@@ -403,6 +409,7 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
                                 pos_cash_balance_agg,
                                 previous_application,
                                 previous_applications_agg,
+                                application_previous_application
                                 ],
             numerical_features_valid=[application_valid,
                                       application_agg_valid,
@@ -417,6 +424,7 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
                                       pos_cash_balance_agg_valid,
                                       previous_application_valid,
                                       previous_applications_agg_valid,
+                                      application_previous_application_valid
                                       ],
             categorical_features=[categorical_encoder
                                   ],
@@ -434,8 +442,15 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
         bureau_balance = _bureau_balance(bureau_balance_cleaned, config, train_mode, suffix, **kwargs)
         credit_card_balance = _credit_card_balance(credit_card_balance_cleaned, config, train_mode, suffix, **kwargs)
         pos_cash_balance = _pos_cash_balance(pos_cash_balance_cleaned, config, train_mode, suffix, **kwargs)
-        previous_application = _previous_application(previous_application_cleaned, application_cleaned, config, train_mode, suffix, **kwargs)
+        previous_application = _previous_application(previous_application_cleaned, config, train_mode, suffix, **kwargs)
         installment_payments = _installment_payments(installment_payments_cleaned, config, train_mode, suffix, **kwargs)
+        application_previous_application = _application_previous_application(
+            application_cleaned,
+            previous_application_cleaned,
+            config,
+            train_mode,
+            suffix,
+            **kwargs)
 
         application_agg = _application_groupby_agg(
             application_cleaned,
@@ -487,6 +502,7 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
                                                               pos_cash_balance_agg,
                                                               previous_application,
                                                               previous_applications_agg,
+                                                              application_previous_application
                                                               ],
                                           numerical_features_valid=[],
                                           categorical_features=[categorical_encoder
@@ -1182,19 +1198,14 @@ def _previous_application_cleaning(config, **kwargs):
     return previous_application_cleaning
 
 
-def _previous_application(previous_application_cleaned, application_cleaned, config, train_mode, suffix, **kwargs):
-    if train_mode:
-        application_cleaned, application_cleaned_valid = application_cleaned
-
+def _previous_application(previous_application_cleaned, config, train_mode, suffix, **kwargs):
     previous_applications_hand_crafted = Step(name='previous_applications_hand_crafted',
                                               transformer=fe.PreviousApplicationFeatures(
                                                   **config.previous_applications),
-                                              input_steps=[previous_application_cleaned
-                                                           application_cleaned],
+                                              input_steps=[previous_application_cleaned],
                                               adapter=Adapter(
-                                                  {'prev_applications': E(previous_application_cleaned.name,
-                                                                          'previous_application'),
-                                                   'applications': E(application_cleaned.name, 'application')}),
+                                                  {'previous_application': E(previous_application_cleaned.name,
+                                                                          'previous_application')}),
                                               experiment_directory=config.pipeline.experiment_directory,
                                               **kwargs)
 
@@ -1271,6 +1282,33 @@ def _installment_payments(installment_payments_cleaned, config, train_mode, suff
         return installment_payments_hand_crafted_merge, installment_payments_hand_crafted_merge_valid
     else:
         return installment_payments_hand_crafted_merge
+
+
+def _application_previous_application(application_cleaned, previous_application_cleaned, config, train_mode, suffix,
+                                      **kwargs):
+    if train_mode:
+        application_cleaned, application_cleaned_valid = application_cleaned
+
+    app_prev_app = Step(name='application_previous_application{}'.format(suffix),
+                       transformer=fe.ApplicationPreviousApplicationFeatures(**config.application_previous_application),
+                       input_steps=[application_cleaned, previous_application_cleaned],
+                       adapter=Adapter({'application': E(application_cleaned.name, 'X'),
+                                        'previous_application': E(previous_application_cleaned.name,
+                                                                  'previous_application')}),
+                       experiment_directory=config.pipeline.experiment_directory,
+                       **kwargs)
+    if train_mode:
+        app_prev_app_valid = Step(name='application_previous_application_valid{}'.format(suffix),
+                                 transformer=app_prev_app,
+                                 input_steps=[application_cleaned_valid, previous_application_cleaned],
+                                 adapter=Adapter({'application': E(application_cleaned_valid.name, 'X'),
+                                                  'previous_application': E(previous_application_cleaned.name,
+                                                                            'previous_application')}),
+                                 experiment_directory=config.pipeline.experiment_directory,
+                                 **kwargs)
+        return app_prev_app, app_prev_app_valid
+    else:
+        return app_prev_app
 
 
 def _fillna(fill_value, **kwargs):

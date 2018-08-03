@@ -771,9 +771,9 @@ class PreviousApplicationFeatures(BasicHandCraftedFeatures):
         g.rename(index=str, columns={'SK_ID_PREV': 'previous_application_number_of_prev_application'}, inplace=True)
         features = features.merge(g, on=['SK_ID_CURR'], how='left')
 
-        g = prev_app_sorted.groupby(by=['SK_ID_CURR'])['previous_application_prev_was_refused'].mean().reset_index()
+        g = prev_app_sorted.groupby(by=['SK_ID_CURR'])['refused'].mean().reset_index()
         g.rename(index=str, columns={
-            'previous_application_prev_was_refused': 'previous_application_fraction_of_refused_applications'},
+            'refused': 'previous_application_fraction_of_refused_applications'},
                  inplace=True)
 
         g = PreviousApplicationFeatures.get_last_k_credits_features(prev_app_sorted,
@@ -786,10 +786,11 @@ class PreviousApplicationFeatures(BasicHandCraftedFeatures):
     @staticmethod
     def get_last_k_credits_features(prev_app_sorted, numbers_of_applications):
 
-        def _get_last_k_applications_feature_name(self, feature_name, number, suffix):
+        def _get_last_k_applications_feature_name(feature_name, number, suffix):
             return 'previous_application_{}_last_{}_applications_{}'.format(feature_name, number, suffix)
 
-        features = pd.DataFrame(prev_app_sorted['SK_ID_CURR'].unique()).set_index('SK_ID_CURR')
+        features = pd.DataFrame({'SK_ID_CURR': prev_app_sorted['SK_ID_CURR'].unique()}).set_index('SK_ID_CURR',
+                                                                                                  drop=True)
 
         feature_list = ['CNT_PAYMENT', 'DAYS_DECISION', 'DAYS_FIRST_DRAWING', 'approved', 'refused', 'revolving_loan',
                         'credit_goods_diff', 'credit_goods_ratio', 'application_credit_diff',
@@ -797,8 +798,8 @@ class PreviousApplicationFeatures(BasicHandCraftedFeatures):
 
         for number in numbers_of_applications:
             prev_applications_tail = prev_app_sorted.groupby('SK_ID_CURR').tail(number)
-            tail_groupby = prev_applications_tail.groupby(by=['SK_ID_CURR'])
-            g = tail_groupby[feature_list].agg('mean').reset_index()
+            tail_groupby = prev_applications_tail.groupby('SK_ID_CURR')
+            g = tail_groupby[feature_list].agg('mean')
 
             g.rename(axis='columns',
                      mapper=partial(_get_last_k_applications_feature_name, number=number, suffix='mean'),
@@ -814,29 +815,32 @@ class PreviousApplicationFeatures(BasicHandCraftedFeatures):
 
 
 class ApplicationPreviousApplicationFeatures(BaseTransformer):
+    def __init__(self, numbers_of_applications=[], **kwargs):
+        self.numbers_of_applications = numbers_of_applications
+
     def transform(self, application, previous_application, **kwargs):
-        features = pd.DataFrame({'SK_ID_CURR': previous_application['SK_ID_CURR'].unique()})
-        applications_copy = application[[col for col in application.columns
-                                          if col in previous_application.columns]].copy()
+        features = pd.DataFrame({'SK_ID_CURR': application['SK_ID_CURR']})
+        common_columns = [col for col in application.columns if col in previous_application.columns]
+        applications_copy = application[common_columns].copy()
 
-        prev_application_merged = previous_application[applications_copy.columns.tolist() + ['DAYS_DECISION']].merge(
-            applications_copy, on='SK_ID_CURR', how='left')
-        prev_app_sorted = prev_application_merged.sort_values(['SK_ID_CURR', 'DAYS_DECISION'])
+        merged_tables = previous_application[common_columns + ['DAYS_DECISION']].merge(
+            applications_copy, on='SK_ID_CURR', how='right')
+        merged_sorted = merged_tables.sort_values(['SK_ID_CURR', 'DAYS_DECISION'])
 
-        prev_app_sorted['annuity_diff'] = prev_app_sorted['AMT_ANNUITY_y'] - prev_app_sorted['AMT_ANNUITY_x']
-        prev_app_sorted['annuity_ratio'] = prev_app_sorted['AMT_ANNUITY_y'] / prev_app_sorted['AMT_ANNUITY_x']
-        prev_app_sorted['credit_diff'] = prev_app_sorted['AMT_CREDIT_y'] - prev_app_sorted['AMT_CREDIT_x']
-        prev_app_sorted['credit_ratio'] = prev_app_sorted['AMT_CREDIT_y'] / prev_app_sorted['AMT_CREDIT_x']
+        merged_sorted['annuity_diff'] = merged_sorted['AMT_ANNUITY_y'] - merged_sorted['AMT_ANNUITY_x']
+        merged_sorted['annuity_ratio'] = merged_sorted['AMT_ANNUITY_y'] / merged_sorted['AMT_ANNUITY_x']
+        merged_sorted['credit_diff'] = merged_sorted['AMT_CREDIT_y'] - merged_sorted['AMT_CREDIT_x']
+        merged_sorted['credit_ratio'] = merged_sorted['AMT_CREDIT_y'] / merged_sorted['AMT_CREDIT_x']
 
-        prev_app_sorted['the_same_contract_type'] = (
-                prev_app_sorted['NAME_CONTRACT_TYPE_x'] == prev_app_sorted['NAME_CONTRACT_TYPE_y']).astype(int)
-        prev_app_sorted['the_same_weekday'] = (prev_app_sorted['WEEKDAY_APPR_PROCESS_START_x'] == prev_app_sorted['WEEKDAY_APPR_PROCESS_START_y']).astype(int)
-        prev_app_sorted['hour_diff'] = prev_app_sorted['HOUR_APPR_PROCESS_START_x'] - prev_app_sorted['HOUR_APPR_PROCESS_START_y']
-        prev_app_sorted['the_same_type_suite'] = (
-                prev_app_sorted['NAME_TYPE_SUITE_x'] == prev_app_sorted['NAME_TYPE_SUITE_y']).astype(int)
-        prev_app_sorted['the_same_type_suite'][prev_app_sorted['NAME_TYPE_SUITE_x'].isnull()] = 1
+        merged_sorted['the_same_contract_type'] = (
+                merged_sorted['NAME_CONTRACT_TYPE_x'] == merged_sorted['NAME_CONTRACT_TYPE_y']).astype(int)
+        merged_sorted['the_same_weekday'] = (merged_sorted['WEEKDAY_APPR_PROCESS_START_x'] == merged_sorted['WEEKDAY_APPR_PROCESS_START_y']).astype(int)
+        merged_sorted['hour_diff'] = merged_sorted['HOUR_APPR_PROCESS_START_x'] - merged_sorted['HOUR_APPR_PROCESS_START_y']
+        merged_sorted['the_same_type_suite'] = (
+                merged_sorted['NAME_TYPE_SUITE_x'] == merged_sorted['NAME_TYPE_SUITE_y']).astype(int)
+        merged_sorted['the_same_type_suite'][merged_sorted['NAME_TYPE_SUITE_x'].isnull()] = 1
 
-        g = ApplicationPreviousApplicationFeatures.get_last_k_credits_features(prev_app_sorted,
+        g = ApplicationPreviousApplicationFeatures.get_last_k_credits_features(merged_sorted,
                                                                     numbers_of_applications=self.numbers_of_applications)
         features = features.merge(g, on=['SK_ID_CURR'], how='left')
 
@@ -844,19 +848,20 @@ class ApplicationPreviousApplicationFeatures(BaseTransformer):
         return {'numerical_features': self.features}
 
     @staticmethod
-    def get_last_k_credits_features(prev_app_sorted, numbers_of_applications):
-        def _get_last_k_applications_feature_name(self, feature_name, number, suffix):
+    def get_last_k_credits_features(merged_sorted, numbers_of_applications):
+        def _get_last_k_applications_feature_name(feature_name, number, suffix):
             return 'application_previous_application_{}_last_{}_applications_{}'.format(feature_name, number, suffix)
 
-        features = pd.DataFrame(prev_app_sorted['SK_ID_CURR'].unique()).set_index('SK_ID_CURR')
+        features = pd.DataFrame({'SK_ID_CURR': merged_sorted['SK_ID_CURR'].unique()}).set_index('SK_ID_CURR',
+                                                                                                drop=True)
 
         feature_list = ['annuity_diff', 'annuity_ratio', 'credit_diff', 'credit_ratio', 'the_same_contract_type',
                         'the_same_type_suite', 'the_same_weekday', 'hour_diff']
 
         for number in numbers_of_applications:
-            prev_applications_tail = prev_app_sorted.groupby('SK_ID_CURR').tail(number)
-            tail_groupby = prev_applications_tail.groupby(by=['SK_ID_CURR'])
-            g = tail_groupby[feature_list].agg('mean').reset_index()
+            table_tail = merged_sorted.groupby('SK_ID_CURR').tail(number)
+            tail_groupby = table_tail.groupby('SK_ID_CURR')
+            g = tail_groupby[feature_list].agg('mean')
 
             g.rename(axis='columns',
                      mapper=partial(_get_last_k_applications_feature_name, number=number, suffix='mean'),

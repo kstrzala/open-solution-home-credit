@@ -62,6 +62,8 @@ parameters:
   bureau_balance__last_k_trend_periods: '[6, 12, 60]'
   bureau_balance__last_k_agg_periods: '[6, 12, 24, 60]'
   bureau_balance__last_k_agg_period_fractions: '[(6,24), (12, 60)]'
+  previous_applications__last_k_credits: '[1, 3, 5, 10]'
+  application_previous_application__last_k_credits: '[1, 3, 5, 10]'
   application_aggregation__use_diffs_only: True
   use_nan_count: True
 

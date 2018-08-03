@@ -349,6 +349,12 @@ SOLUTION_CONFIG = AttrDict({
                               'num_workers': params.num_workers
                               },
 
+    'application_previous_application': {'table_name': 'application_previous_application',
+                                         'id_columns': ('SK_ID_CURR', 'SK_ID_CURR'),
+                                         'numbers_of_applications': parameter_eval(
+                                             params.application_previous_application__last_k_credits),
+                                         },
+
     'light_gbm': {'device': parameter_eval(params.lgbm__device),
                   'boosting_type': parameter_eval(params.lgbm__boosting_type),
                   'objective': parameter_eval(params.lgbm__objective),
