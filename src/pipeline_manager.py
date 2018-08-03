@@ -53,24 +53,24 @@ def train(pipeline_name, dev_mode):
 
     bureau, bureau_valid = split_table(tables.bureau, train_data_split, valid_data_split, cfg.ID_COLUMNS[0])
     bureau_balance, bureau_balance_valid = split_table(tables.bureau_balance,
-                                                       train_data_split,
-                                                       valid_data_split,
+                                                       [train_data_split,
+                                                       valid_data_split],
                                                        cfg.ID_COLUMNS[0])
     credit_card_balance, credit_card_balance_valid = split_table(tables.credit_card_balance,
-                                                                 train_data_split,
-                                                                 valid_data_split,
+                                                                 [train_data_split,
+                                                                 valid_data_split],
                                                                  cfg.ID_COLUMNS[0])
     previous_application, previous_application_valid = split_table(tables.previous_application,
-                                                                   train_data_split,
-                                                                   valid_data_split,
+                                                                   [train_data_split,
+                                                                   valid_data_split],
                                                                    cfg.ID_COLUMNS[0])
     installments_payments, installments_payments_valid = split_table(tables.installments_payments,
-                                                                     train_data_split,
-                                                                     valid_data_split,
+                                                                     [train_data_split,
+                                                                     valid_data_split],
                                                                      cfg.ID_COLUMNS[0])
     pos_cash_balance, pos_cash_balance_valid = split_table(tables.pos_cash_balance,
-                                                           train_data_split,
-                                                           valid_data_split,
+                                                           [train_data_split,
+                                                           valid_data_split],
                                                            cfg.ID_COLUMNS[0])
 
 
@@ -118,12 +118,12 @@ def evaluate(pipeline_name, dev_mode):
                                            random_state=cfg.RANDOM_SEED,
                                            shuffle=params.shuffle)
 
-    bureau_valid = split_table(tables.bureau, valid_data_split, cfg.ID_COLUMNS[0])
-    bureau_balance_valid = split_table(tables.bureau_balance, valid_data_split, cfg.ID_COLUMNS[0])
-    credit_card_balance_valid = split_table(tables.credit_card_balance, valid_data_split, cfg.ID_COLUMNS[0])
-    previous_application_valid = split_table(tables.previous_application, valid_data_split, cfg.ID_COLUMNS[0])
-    installments_payments_valid = split_table(tables.installments_payments, valid_data_split, cfg.ID_COLUMNS[0])
-    pos_cash_balance_valid = split_table(tables.pos_cash_balance, valid_data_split, cfg.ID_COLUMNS[0])
+    bureau_valid = split_table(tables.bureau, [valid_data_split], cfg.ID_COLUMNS[0])
+    bureau_balance_valid = split_table(tables.bureau_balance, [valid_data_split], cfg.ID_COLUMNS[0])
+    credit_card_balance_valid = split_table(tables.credit_card_balance, [valid_data_split], cfg.ID_COLUMNS[0])
+    previous_application_valid = split_table(tables.previous_application, [valid_data_split], cfg.ID_COLUMNS[0])
+    installments_payments_valid = split_table(tables.installments_payments, [valid_data_split], cfg.ID_COLUMNS[0])
+    pos_cash_balance_valid = split_table(tables.pos_cash_balance, [valid_data_split], cfg.ID_COLUMNS[0])
 
     logger.info('Target mean in valid: {}'.format(valid_data_split[cfg.TARGET_COLUMNS].mean()))
     logger.info('Valid shape: {}'.format(valid_data_split.shape))
@@ -445,6 +445,8 @@ def _read_data(dev_mode, read_train=True, read_test=False):
 
     if read_test:
         raw_data['application_test'] = pd.read_csv(params.test_filepath, nrows=nrows)
+
+    nrows = None
     raw_data['bureau'] = pd.read_csv(params.bureau_filepath, nrows=nrows)
     raw_data['credit_card_balance'] = pd.read_csv(params.credit_card_balance_filepath, nrows=nrows)
     raw_data['pos_cash_balance'] = pd.read_csv(params.POS_CASH_balance_filepath, nrows=nrows)
@@ -472,13 +474,13 @@ def _fold_fit_evaluate_predict_loop(train_data_split, valid_data_split, tables, 
     score, y_valid_pred, pipeline = _fold_fit_evaluate_loop(train_data_split, valid_data_split, tables,
                                                             fold_id, pipeline_name, model_level)
     if model_level == 'first':
-        bureau_test = split_table(tables.bureau, tables.application_test, cfg.ID_COLUMNS[0])
-        bureau_balance_test = split_table(tables.bureau_balance, tables.application_test, cfg.ID_COLUMNS[0])
-        credit_card_balance_test = split_table(tables.credit_card_balance, tables.application_test, cfg.ID_COLUMNS[0])
-        previous_application_test = split_table(tables.previous_application, tables.application_test, cfg.ID_COLUMNS[0])
-        installments_payments_test = split_table(tables.installments_payments, tables.application_test,
+        bureau_test = split_table(tables.bureau, [tables.application_test], cfg.ID_COLUMNS[0])
+        bureau_balance_test = split_table(tables.bureau_balance, [tables.application_test], cfg.ID_COLUMNS[0])
+        credit_card_balance_test = split_table(tables.credit_card_balance, [tables.application_test], cfg.ID_COLUMNS[0])
+        previous_application_test = split_table(tables.previous_application, [tables.application_test], cfg.ID_COLUMNS[0])
+        installments_payments_test = split_table(tables.installments_payments, [tables.application_test],
                                                  cfg.ID_COLUMNS[0])
-        pos_cash_balance_test = split_table(tables.pos_cash_balance, tables.application_test, cfg.ID_COLUMNS[0])
+        pos_cash_balance_test = split_table(tables.pos_cash_balance, [tables.application_test], cfg.ID_COLUMNS[0])
 
         test_data = {'application': {'X': tables.application_test,
                                      'y': None,
@@ -523,26 +525,26 @@ def _fold_fit_evaluate_predict_loop(train_data_split, valid_data_split, tables, 
 
 def _fold_fit_evaluate_loop(train_data_split, valid_data_split, tables, fold_id, pipeline_name, model_level):
     if model_level == 'first':
-        bureau, bureau_valid = split_table(tables.bureau, train_data_split, valid_data_split, cfg.ID_COLUMNS[0])
+        bureau, bureau_valid = split_table(tables.bureau, [train_data_split, valid_data_split], cfg.ID_COLUMNS[0])
         bureau_balance, bureau_balance_valid = split_table(tables.bureau_balance,
-                                                           train_data_split,
-                                                           valid_data_split,
+                                                           [train_data_split,
+                                                           valid_data_split],
                                                            cfg.ID_COLUMNS[0])
         credit_card_balance, credit_card_balance_valid = split_table(tables.credit_card_balance,
-                                                                     train_data_split,
-                                                                     valid_data_split,
+                                                                     [train_data_split,
+                                                                     valid_data_split],
                                                                      cfg.ID_COLUMNS[0])
         previous_application, previous_application_valid = split_table(tables.previous_application,
-                                                                       train_data_split,
-                                                                       valid_data_split,
+                                                                       [train_data_split,
+                                                                       valid_data_split],
                                                                        cfg.ID_COLUMNS[0])
         installments_payments, installments_payments_valid = split_table(tables.installments_payments,
-                                                                         train_data_split,
-                                                                         valid_data_split,
+                                                                         [train_data_split,
+                                                                         valid_data_split],
                                                                          cfg.ID_COLUMNS[0])
         pos_cash_balance, pos_cash_balance_valid = split_table(tables.pos_cash_balance,
-                                                               train_data_split,
-                                                               valid_data_split,
+                                                               [train_data_split,
+                                                               valid_data_split],
                                                                cfg.ID_COLUMNS[0])
 
         train_data = {'application': {'X': train_data_split.drop(cfg.TARGET_COLUMNS, axis=1),

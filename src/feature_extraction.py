@@ -24,8 +24,8 @@ class FeatureJoiner(BaseTransformer):
     def transform(self, numerical_feature_list, categorical_feature_list, **kwargs):
         features = numerical_feature_list + categorical_feature_list
         for feature in features:
-            feature.reset_index(drop=True, inplace=True)
-        features = pd.concat(features, axis=1).astype(np.float32)
+            feature.set_index('SK_ID_CURR', drop=True, inplace=True)
+        features = pd.concat(features, axis=1).astype(np.float32).reset_index()
         if self.use_nan_count:
             features['nan_count'] = features.isnull().sum(axis=1)
 
@@ -58,13 +58,13 @@ class CategoricalEncoder(BaseTransformer):
         self.categorical_encoder = None
 
     def fit(self, X, y, **kwargs):
-        X_ = X[self.categorical_columns]
+        X_ = X[['SK_ID_CURR'] + self.categorical_columns]
         self.categorical_encoder = self.encoder_class(cols=self.categorical_columns, **self.params)
         self.categorical_encoder.fit(X_, y)
         return self
 
     def transform(self, X, **kwargs):
-        X_ = X[self.categorical_columns]
+        X_ = X[['SK_ID_CURR'] + self.categorical_columns]
         X_ = self.categorical_encoder.transform(X_)
         return {'categorical_features': X_}
 
@@ -133,7 +133,7 @@ class GroupbyAggregateDiffs(BaseTransformer):
         main_table = self._merge_grouby_features(main_table)
         main_table = self._add_diff_features(main_table)
 
-        return {'numerical_features': main_table[self.feature_names].astype(np.float32)}
+        return {'numerical_features': main_table[['SK_ID_CURR'] + self.feature_names].astype(np.float32)}
 
     def _merge_grouby_features(self, main_table):
         for groupby_cols, groupby_features in self.features:
@@ -181,7 +181,7 @@ class GroupbyAggregate(BaseTransformer):
         self.id_columns = id_columns
         self.groupby_aggregations = groupby_aggregations
 
-    def fit(self, table, **kwargs):
+    def transform(self, table, **kwargs):
         features = pd.DataFrame({self.id_columns[0]: table[self.id_columns[0]].unique()})
 
         for groupby_cols, specs in self.groupby_aggregations:
@@ -197,10 +197,8 @@ class GroupbyAggregate(BaseTransformer):
                                           on=groupby_cols,
                                           how='left')
         self.features = features
-        return self
+        return {'numerical_features': self.features}
 
-    def transform(self, table, **kwargs):
-        return {'features_table': self.features}
 
     def load(self, filepath):
         self.features = joblib.load(filepath)
@@ -213,24 +211,24 @@ class GroupbyAggregate(BaseTransformer):
         return '{}_{}_{}_{}'.format(self.table_name, '_'.join(groupby_cols), agg, select)
 
 
-class GroupbyMerge(BaseTransformer):
-    def __init__(self, id_columns, **kwargs):
-        super().__init__()
-        self.id_columns = id_columns
-
-    def _feature_names(self, features):
-        feature_names = list(features.columns)
-        feature_names.remove(self.id_columns[0])
-        return feature_names
-
-    def transform(self, table, features, **kwargs):
-        table = table.merge(features,
-                            left_on=[self.id_columns[0]],
-                            right_on=[self.id_columns[1]],
-                            how='left',
-                            validate='one_to_one')
-
-        return {'numerical_features': table[self._feature_names(features)].astype(np.float32)}
+# class GroupbyMerge(BaseTransformer):
+#     def __init__(self, id_columns, **kwargs):
+#         super().__init__()
+#         self.id_columns = id_columns
+#
+#     def _feature_names(self, features):
+#         feature_names = list(features.columns)
+#         feature_names.remove(self.id_columns[0])
+#         return feature_names
+#
+#     def transform(self, table, features, **kwargs):
+#         table = table.merge(features,
+#                             left_on=[self.id_columns[0]],
+#                             right_on=[self.id_columns[1]],
+#                             how='left',
+#                             validate='one_to_one')
+#
+#         return {'numerical_features': table[self._feature_names(features)].astype(np.float32)}
 
 
 class BasicHandCraftedFeatures(BaseTransformer):
@@ -243,9 +241,6 @@ class BasicHandCraftedFeatures(BaseTransformer):
         feature_names = list(self.features.columns)
         feature_names.remove('SK_ID_CURR')
         return feature_names
-
-    def transform(self, **kwargs):
-        return {'features_table': self.features}
 
     def load(self, filepath):
         self.features = joblib.load(filepath)
@@ -336,7 +331,7 @@ class ApplicationFeatures(BaseTransformer):
         X['short_employment'] = (X['DAYS_EMPLOYED'] < -2000).astype(int)
         X['young_age'] = (X['DAYS_BIRTH'] < -14000).astype(int)
 
-        return {'numerical_features': X[self.engineered_numerical_columns + self.numerical_columns],
+        return {'numerical_features': X[['SK_ID_CURR'] + self.engineered_numerical_columns + self.numerical_columns],
                 'categorical_features': X[self.categorical_columns]
                 }
 
@@ -350,7 +345,7 @@ class BureauFeatures(BasicHandCraftedFeatures):
         self.num_workers = num_workers
         self.features = None
 
-    def fit(self, bureau, **kwargs):
+    def transform(self, bureau, **kwargs):
         bureau.sort_values(['SK_ID_CURR', 'DAYS_CREDIT'], ascending=False, inplace=True)
         bureau['bureau_credit_active_binary'] = (bureau['CREDIT_ACTIVE'] != 'Closed').astype(int)
         bureau['bureau_credit_enddate_binary'] = (bureau['DAYS_CREDIT_ENDDATE'] > 0).astype(int)
@@ -413,7 +408,7 @@ class BureauFeatures(BasicHandCraftedFeatures):
         features = features.merge(g, on='SK_ID_CURR', how='left')
 
         self.features = features
-        return self
+        return {'numerical_features': self.features}
 
     @staticmethod
     def generate_features(gr, agg_periods):
@@ -476,7 +471,7 @@ class BureauBalanceFeatures(BasicHandCraftedFeatures):
         self.num_workers = num_workers
         self.features = None
 
-    def fit(self, bureau_balance, **kwargs):
+    def transform(self, bureau_balance, **kwargs):
         bureau_balance['bureau_balance_dpd_level'] = bureau_balance['STATUS'].apply(self._status_to_int)
         bureau_balance['bureau_balance_status_unknown'] = (bureau_balance['STATUS'] == 'X').astype(int)
         bureau_balance['bureau_balance_no_history'] = bureau_balance['MONTHS_BALANCE'].isnull().astype(int)
@@ -494,7 +489,7 @@ class BureauBalanceFeatures(BasicHandCraftedFeatures):
         features = features.merge(g, on='SK_ID_CURR', how='left')
 
         self.features = features
-        return self
+        return {'numerical_features': self.features}
 
     def _status_to_int(self, status):
         if status in ['X', 'C']:
@@ -552,7 +547,7 @@ class BureauBalanceFeatures(BasicHandCraftedFeatures):
 
 
 class CreditCardBalanceFeatures(BasicHandCraftedFeatures):
-    def fit(self, credit_card, **kwargs):
+    def transform(self, credit_card, **kwargs):
         static_features = self._static_features(credit_card, **kwargs)
         dynamic_features = self._dynamic_features(credit_card, **kwargs)
 
@@ -560,7 +555,7 @@ class CreditCardBalanceFeatures(BasicHandCraftedFeatures):
                                  dynamic_features,
                                  on=['SK_ID_CURR'],
                                  validate='one_to_one')
-        return self
+        return {'numerical_features': self.features}
 
     def _static_features(self, credit_card, **kwargs):
         credit_card['number_of_installments'] = credit_card.groupby(
@@ -634,7 +629,7 @@ class POSCASHBalanceFeatures(BasicHandCraftedFeatures):
         self.num_workers = num_workers
         self.features = None
 
-    def fit(self, pos_cash, **kwargs):
+    def transform(self, pos_cash, **kwargs):
         pos_cash['is_contract_status_completed'] = pos_cash['NAME_CONTRACT_STATUS'] == 'Completed'
         pos_cash['pos_cash_paid_late'] = (pos_cash['SK_DPD'] > 0).astype(int)
         pos_cash['pos_cash_paid_late_with_tolerance'] = (pos_cash['SK_DPD_DEF'] > 0).astype(int)
@@ -651,7 +646,7 @@ class POSCASHBalanceFeatures(BasicHandCraftedFeatures):
         features = features.merge(g, on='SK_ID_CURR', how='left')
 
         self.features = features
-        return self
+        return {'numerical_features': self.features}
 
     @staticmethod
     def generate_features(gr, agg_periods, trend_periods):
@@ -753,7 +748,7 @@ class PreviousApplicationFeatures(BasicHandCraftedFeatures):
         super().__init__(num_workers=num_workers)
         self.numbers_of_applications = numbers_of_applications
 
-    def fit(self, prev_applications, **kwargs):
+    def transform(self, prev_applications, **kwargs):
         features = pd.DataFrame({'SK_ID_CURR': prev_applications['SK_ID_CURR'].unique()})
 
         prev_app_sorted = prev_applications.sort_values(['SK_ID_CURR', 'DAYS_DECISION'])
@@ -812,7 +807,7 @@ class PreviousApplicationFeatures(BasicHandCraftedFeatures):
             features = features.merge(g, on=['SK_ID_CURR'], how='left')
 
         self.features = features
-        return self
+        return {'numerical_features': self.features}
 
 
 class InstallmentPaymentsFeatures(BasicHandCraftedFeatures):
@@ -825,7 +820,7 @@ class InstallmentPaymentsFeatures(BasicHandCraftedFeatures):
         self.num_workers = num_workers
         self.features = None
 
-    def fit(self, installments, **kwargs):
+    def transform(self, installments, **kwargs):
         installments['installment_paid_late_in_days'] = installments['DAYS_ENTRY_PAYMENT'] - installments[
             'DAYS_INSTALMENT']
         installments['installment_paid_late'] = (installments['installment_paid_late_in_days'] > 0).astype(int)
@@ -845,7 +840,7 @@ class InstallmentPaymentsFeatures(BasicHandCraftedFeatures):
         features = features.merge(g, on='SK_ID_CURR', how='left')
 
         self.features = features
-        return self
+        return {'numerical_features': self.features}
 
     @staticmethod
     def generate_features(gr, agg_periods, trend_periods):

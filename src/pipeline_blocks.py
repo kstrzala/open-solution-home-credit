@@ -301,47 +301,34 @@ def classifier_sklearn(features,
 
 
 def feature_extraction(config, train_mode, suffix, **kwargs):
-    bureau_cleaned = _bureau_cleaning(config, **kwargs)
-    bureau_balance_cleaned = _bureau_balance_cleaning(config, **kwargs)
-    credit_card_balance_cleaned = _credit_card_balance_cleaning(config, **kwargs)
-    installment_payments_cleaned = _installment_payments_cleaning(config, **kwargs)
-    pos_cash_balance_cleaned = _pos_cash_balance_cleaning(config, **kwargs)
-    previous_application_cleaned = _previous_application_cleaning(config, **kwargs)
-
     if train_mode:
         application, application_valid = _application(config, train_mode, suffix, **kwargs)
         bureau, bureau_valid = _bureau(
-            bureau_cleaned,
             config,
             train_mode,
             suffix,
             **kwargs)
         bureau_balance, bureau_balance_valid = _bureau_balance(
-            bureau_balance_cleaned,
             config,
             train_mode,
             suffix,
             **kwargs)
         credit_card_balance, credit_card_balance_valid = _credit_card_balance(
-            credit_card_balance_cleaned,
             config,
             train_mode,
             suffix,
             **kwargs)
         installment_payments, installment_payments_valid = _installment_payments(
-            installment_payments_cleaned,
             config,
             train_mode,
             suffix,
             **kwargs)
         pos_cash_balance, pos_cash_balance_valid = _pos_cash_balance(
-            pos_cash_balance_cleaned,
             config,
             train_mode,
             suffix,
             **kwargs)
         previous_application, previous_application_valid = _previous_application(
-            previous_application_cleaned,
             config,
             train_mode,
             suffix,
@@ -349,28 +336,23 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
 
         application_agg, application_agg_valid = _application_groupby_agg(config, train_mode, suffix, **kwargs)
         bureau_agg, bureau_agg_valid = _bureau_groupby_agg(
-            bureau_cleaned,
             config,
             train_mode,
             suffix,
             **kwargs)
         credit_card_balance_agg, credit_card_balance_agg_valid = _credit_card_balance_groupby_agg(
-            credit_card_balance_cleaned,
             config,
             train_mode, suffix,
             **kwargs)
         installments_payments_agg, installments_payments_agg_valid = _installments_payments_groupby_agg(
-            installment_payments_cleaned,
             config,
             train_mode, suffix,
             **kwargs)
         pos_cash_balance_agg, pos_cash_balance_agg_valid = _pos_cash_balance_groupby_agg(
-            pos_cash_balance_cleaned,
             config,
             train_mode, suffix,
             **kwargs)
-        previous_applications_agg, previous_applications_agg_valid = _previous_applications_groupby_agg(
-            previous_application_cleaned,
+        previous_application_agg, previous_application_agg_valid = _previous_application_groupby_agg(
             config,
             train_mode, suffix,
             **kwargs)
@@ -390,7 +372,7 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
                                 pos_cash_balance,
                                 pos_cash_balance_agg,
                                 previous_application,
-                                previous_applications_agg,
+                                previous_application_agg,
                                 ],
             numerical_features_valid=[application_valid,
                                       application_agg_valid,
@@ -404,7 +386,7 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
                                       pos_cash_balance_valid,
                                       pos_cash_balance_agg_valid,
                                       previous_application_valid,
-                                      previous_applications_agg_valid,
+                                      previous_application_agg_valid,
                                       ],
             categorical_features=[categorical_encoder
                                   ],
@@ -418,40 +400,35 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
         return feature_combiner, feature_combiner_valid
     else:
         application = _application(config, train_mode, suffix, **kwargs)
-        bureau = _bureau(bureau_cleaned, config, train_mode, suffix, **kwargs)
-        bureau_balance = _bureau_balance(bureau_balance_cleaned, config, train_mode, suffix, **kwargs)
-        credit_card_balance = _credit_card_balance(credit_card_balance_cleaned, config, train_mode, suffix, **kwargs)
-        pos_cash_balance = _pos_cash_balance(pos_cash_balance_cleaned, config, train_mode, suffix, **kwargs)
-        previous_application = _previous_application(previous_application_cleaned, config, train_mode, suffix, **kwargs)
-        installment_payments = _installment_payments(installment_payments_cleaned, config, train_mode, suffix, **kwargs)
+        bureau = _bureau(config, train_mode, suffix, **kwargs)
+        bureau_balance = _bureau_balance(config, train_mode, suffix, **kwargs)
+        credit_card_balance = _credit_card_balance(config, train_mode, suffix, **kwargs)
+        pos_cash_balance = _pos_cash_balance(config, train_mode, suffix, **kwargs)
+        previous_application = _previous_application(config, train_mode, suffix, **kwargs)
+        installment_payments = _installment_payments(config, train_mode, suffix, **kwargs)
 
         application_agg = _application_groupby_agg(config, train_mode, suffix, **kwargs)
         bureau_agg = _bureau_groupby_agg(
-            bureau_cleaned,
             config,
             train_mode,
             suffix,
             **kwargs)
         credit_card_balance_agg = _credit_card_balance_groupby_agg(
-            credit_card_balance_cleaned,
             config,
             train_mode,
             suffix,
             **kwargs)
         installments_payments_agg = _installments_payments_groupby_agg(
-            installment_payments_cleaned,
             config,
             train_mode,
             suffix,
             **kwargs)
         pos_cash_balance_agg = _pos_cash_balance_groupby_agg(
-            pos_cash_balance_cleaned,
             config,
             train_mode,
             suffix,
             **kwargs)
-        previous_applications_agg = _previous_applications_groupby_agg(
-            previous_application_cleaned,
+        previous_application_agg = _previous_application_groupby_agg(
             config,
             train_mode,
             suffix,
@@ -469,7 +446,7 @@ def feature_extraction(config, train_mode, suffix, **kwargs):
                                                               pos_cash_balance,
                                                               pos_cash_balance_agg,
                                                               previous_application,
-                                                              previous_applications_agg,
+                                                              previous_application_agg,
                                                               ],
                                           numerical_features_valid=[],
                                           categorical_features=[categorical_encoder
@@ -778,37 +755,38 @@ def _application_groupby_agg(config, train_mode, suffix, **kwargs):
         return application_groupby_agg
 
 
-def _bureau_groupby_agg(bureau_cleaned, config, train_mode, suffix, **kwargs):
-    bureau_groupby_agg = Step(name='bureau_groupby_agg',
+def _bureau_groupby_agg(config, train_mode, suffix, **kwargs):
+    if train_mode:
+        bureau_cleaned, bureau_cleaned_valid = _bureau_cleaning(config, train_mode, suffix, **kwargs)
+    else:
+        bureau_cleaned = _bureau_cleaning(config, train_mode, suffix, **kwargs)
+
+    bureau_groupby_agg = Step(name='bureau_groupby_agg{}'.format(suffix),
                               transformer=fe.GroupbyAggregate(**config.bureau),
                               input_steps=[bureau_cleaned],
                               adapter=Adapter({'table': E(bureau_cleaned.name, 'bureau')}),
                               experiment_directory=config.pipeline.experiment_directory,
                               **kwargs)
 
-    bureau_agg_merge = Step(name='bureau_agg_merge{}'.format(suffix),
-                            transformer=fe.GroupbyMerge(**config.bureau),
-                            input_data=['application'],
-                            input_steps=[bureau_groupby_agg],
-                            adapter=Adapter({'table': E('application', 'X'),
-                                             'features': E(bureau_groupby_agg.name, 'features_table')}),
-                            experiment_directory=config.pipeline.experiment_directory, **kwargs)
-
     if train_mode:
-        bureau_agg_merge_valid = Step(name='bureau_agg_merge_valid{}'.format(suffix),
-                                      transformer=bureau_agg_merge,
-                                      input_data=['application'],
-                                      input_steps=[bureau_groupby_agg],
-                                      adapter=Adapter({'table': E('application', 'X_valid'),
-                                                       'features': E(bureau_groupby_agg.name, 'features_table')}),
-                                      experiment_directory=config.pipeline.experiment_directory, **kwargs)
-        return bureau_agg_merge, bureau_agg_merge_valid
+        bureau_groupby_agg_valid = Step(name='bureau_groupby_agg_valid{}'.format(suffix),
+                                  transformer=fe.GroupbyAggregate(**config.bureau),
+                                  input_steps=[bureau_cleaned_valid],
+                                  adapter=Adapter({'table': E(bureau_cleaned_valid.name, 'bureau')}),
+                                  experiment_directory=config.pipeline.experiment_directory,
+                                  **kwargs)
+        return bureau_groupby_agg, bureau_groupby_agg_valid
     else:
-        return bureau_agg_merge
+        return bureau_groupby_agg
 
 
-def _credit_card_balance_groupby_agg(credit_card_balance_cleaned, config, train_mode, suffix, **kwargs):
-    credit_card_balance_groupby_agg = Step(name='credit_card_balance_groupby_agg',
+def _credit_card_balance_groupby_agg(config, train_mode, suffix, **kwargs):
+    if train_mode:
+        credit_card_balance_cleaned, credit_card_balance_cleaned_valid = _credit_card_balance_cleaning(config, train_mode, suffix, **kwargs)
+    else:
+        credit_card_balance_cleaned = _credit_card_balance_cleaning(config, train_mode, suffix, **kwargs)
+
+    credit_card_balance_groupby_agg = Step(name='credit_card_balance_groupby_agg{}'.format(suffix),
                                            transformer=fe.GroupbyAggregate(**config.credit_card_balance),
                                            input_steps=[credit_card_balance_cleaned],
                                            adapter=Adapter({'table': E(credit_card_balance_cleaned.name,
@@ -816,31 +794,26 @@ def _credit_card_balance_groupby_agg(credit_card_balance_cleaned, config, train_
                                            experiment_directory=config.pipeline.experiment_directory,
                                            **kwargs)
 
-    credit_card_balance_agg_merge = Step(name='credit_card_balance_agg_merge{}'.format(suffix),
-                                         transformer=fe.GroupbyMerge(**config.credit_card_balance),
-                                         input_data=['application'],
-                                         input_steps=[credit_card_balance_groupby_agg],
-                                         adapter=Adapter({'table': E('application', 'X'),
-                                                          'features': E(credit_card_balance_groupby_agg.name,
-                                                                        'features_table')}),
-                                         experiment_directory=config.pipeline.experiment_directory, **kwargs)
-
     if train_mode:
-        credit_card_balance_agg_merge_valid = Step(name='credit_card_balance_agg_merge_valid{}'.format(suffix),
-                                                   transformer=credit_card_balance_agg_merge,
-                                                   input_data=['application'],
-                                                   input_steps=[credit_card_balance_groupby_agg],
-                                                   adapter=Adapter({'table': E('application', 'X_valid'),
-                                                                    'features': E(credit_card_balance_groupby_agg.name,
-                                                                                  'features_table')}),
-                                                   experiment_directory=config.pipeline.experiment_directory, **kwargs)
-        return credit_card_balance_agg_merge, credit_card_balance_agg_merge_valid
+        credit_card_balance_groupby_agg_valid = Step(name='credit_card_balance_groupby_agg_valid{}'.format(suffix),
+                                               transformer=fe.GroupbyAggregate(**config.credit_card_balance),
+                                               input_steps=[credit_card_balance_cleaned_valid],
+                                               adapter=Adapter({'table': E(credit_card_balance_cleaned_valid.name,
+                                                                           'credit_card')}),
+                                               experiment_directory=config.pipeline.experiment_directory,
+                                               **kwargs)
+        return credit_card_balance_groupby_agg, credit_card_balance_groupby_agg_valid
     else:
-        return credit_card_balance_agg_merge
+        return credit_card_balance_groupby_agg
 
 
-def _installments_payments_groupby_agg(installments_payments_cleaned, config, train_mode, suffix, **kwargs):
-    installments_payments_groupby_agg = Step(name='installments_payments_groupby_agg',
+def _installments_payments_groupby_agg(config, train_mode, suffix, **kwargs):
+    if train_mode:
+        installments_payments_cleaned, installments_payments_cleaned_valid = _installments_payments_cleaning(config, train_mode, suffix, **kwargs)
+    else:
+        installments_payments_cleaned = _installments_payments_cleaning(config, train_mode, suffix, **kwargs)
+
+    installments_payments_groupby_agg = Step(name='installments_payments_groupby_agg{}'.format(suffix),
                                              transformer=fe.GroupbyAggregate(**config.installments_payments),
                                              input_steps=[installments_payments_cleaned],
                                              adapter=Adapter({'table': E(installments_payments_cleaned.name,
@@ -848,95 +821,67 @@ def _installments_payments_groupby_agg(installments_payments_cleaned, config, tr
                                              experiment_directory=config.pipeline.experiment_directory,
                                              **kwargs)
 
-    installments_payments_agg_merge = Step(name='installments_payments_agg_merge{}'.format(suffix),
-                                           transformer=fe.GroupbyMerge(**config.installments_payments),
-                                           input_data=['application'],
-                                           input_steps=[installments_payments_groupby_agg],
-                                           adapter=Adapter({'table': E('application', 'X'),
-                                                            'features': E(installments_payments_groupby_agg.name,
-                                                                          'features_table')}),
-                                           experiment_directory=config.pipeline.experiment_directory, **kwargs)
-
     if train_mode:
-        installments_payments_agg_merge_valid = Step(name='installments_payments_agg_merge_valid{}'.format(suffix),
-                                                     transformer=installments_payments_agg_merge,
-                                                     input_data=['application'],
-                                                     input_steps=[installments_payments_groupby_agg],
-                                                     adapter=Adapter({'table': E('application', 'X_valid'),
-                                                                      'features': E(
-                                                                          installments_payments_groupby_agg.name,
-                                                                          'features_table')}),
-                                                     experiment_directory=config.pipeline.experiment_directory,
-                                                     **kwargs)
-        return installments_payments_agg_merge, installments_payments_agg_merge_valid
+        installments_payments_groupby_agg_valid = Step(name='installments_payments_groupby_agg_valid{}'.format(suffix),
+                                                 transformer=fe.GroupbyAggregate(**config.installments_payments),
+                                                 input_steps=[installments_payments_cleaned_valid],
+                                                 adapter=Adapter({'table': E(installments_payments_cleaned_valid.name,
+                                                                             'installments')}),
+                                                 experiment_directory=config.pipeline.experiment_directory,
+                                                 **kwargs)
+        return installments_payments_groupby_agg, installments_payments_groupby_agg_valid
     else:
-        return installments_payments_agg_merge
+        return installments_payments_groupby_agg
 
 
-def _pos_cash_balance_groupby_agg(pos_cash_balance_cleaned, config, train_mode, suffix, **kwargs):
-    pos_cash_balance_groupby_agg = Step(name='pos_cash_balance_groupby_agg',
+def _pos_cash_balance_groupby_agg(config, train_mode, suffix, **kwargs):
+    if train_mode:
+        pos_cash_balance_cleaned, pos_cash_balance_cleaned_valid = _pos_cash_balance_cleaning(config, train_mode, suffix, **kwargs)
+    else:
+        pos_cash_balance_cleaned = _pos_cash_balance_cleaning(config, train_mode, suffix, **kwargs)
+
+    pos_cash_balance_groupby_agg = Step(name='pos_cash_balance_groupby_agg{}'.format(suffix),
                                         transformer=fe.GroupbyAggregate(**config.pos_cash_balance),
                                         input_steps=[pos_cash_balance_cleaned],
                                         adapter=Adapter({'table': E(pos_cash_balance_cleaned.name, 'pos_cash')}),
                                         experiment_directory=config.pipeline.experiment_directory,
                                         **kwargs)
 
-    pos_cash_balance_agg_merge = Step(name='pos_cash_balance_agg_merge{}'.format(suffix),
-                                      transformer=fe.GroupbyMerge(**config.pos_cash_balance),
-                                      input_data=['application'],
-                                      input_steps=[pos_cash_balance_groupby_agg],
-                                      adapter=Adapter({'table': E('application', 'X'),
-                                                       'features': E(pos_cash_balance_groupby_agg.name,
-                                                                     'features_table')}),
-                                      experiment_directory=config.pipeline.experiment_directory, **kwargs)
-
     if train_mode:
-        pos_cash_balance_agg_merge_valid = Step(name='pos_cash_balance_agg_merge_valid{}'.format(suffix),
-                                                transformer=pos_cash_balance_agg_merge,
-                                                input_data=['application'],
-                                                input_steps=[pos_cash_balance_groupby_agg],
-                                                adapter=Adapter({'table': E('application', 'X_valid'),
-                                                                 'features': E(
-                                                                     pos_cash_balance_groupby_agg.name,
-                                                                     'features_table')}),
-                                                experiment_directory=config.pipeline.experiment_directory,
-                                                **kwargs)
-        return pos_cash_balance_agg_merge, pos_cash_balance_agg_merge_valid
+        pos_cash_balance_groupby_agg_valid = Step(name='pos_cash_balance_groupby_agg_valid{}'.format(suffix),
+                                            transformer=fe.GroupbyAggregate(**config.pos_cash_balance),
+                                            input_steps=[pos_cash_balance_cleaned_valid],
+                                            adapter=Adapter({'table': E(pos_cash_balance_cleaned_valid.name, 'pos_cash')}),
+                                            experiment_directory=config.pipeline.experiment_directory,
+                                            **kwargs)
+        return pos_cash_balance_groupby_agg, pos_cash_balance_groupby_agg_valid
     else:
-        return pos_cash_balance_agg_merge
+        return pos_cash_balance_groupby_agg
 
 
-def _previous_applications_groupby_agg(previous_application_cleaned, config, train_mode, suffix, **kwargs):
-    previous_applications_groupby_agg = Step(name='previous_applications_groupby_agg',
-                                             transformer=fe.GroupbyAggregate(**config.previous_applications),
+def _previous_application_groupby_agg(config, train_mode, suffix, **kwargs):
+    if train_mode:
+        previous_application_cleaned, previous_application_cleaned_valid = _previous_application_cleaning(config, train_mode, suffix, **kwargs)
+    else:
+        previous_application_cleaned = _previous_application_cleaning(config, train_mode, suffix, **kwargs)
+
+    previous_application_groupby_agg = Step(name='previous_application_groupby_agg{}'.format(suffix),
+                                             transformer=fe.GroupbyAggregate(**config.previous_application),
                                              input_steps=[previous_application_cleaned],
                                              adapter=Adapter({'table': E(previous_application_cleaned.name,
                                                                          'previous_application')}),
                                              experiment_directory=config.pipeline.experiment_directory, **kwargs)
 
-    previous_applications_agg_merge = Step(name='previous_applications_agg_merge{}'.format(suffix),
-                                           transformer=fe.GroupbyMerge(**config.previous_applications),
-                                           input_data=['application'],
-                                           input_steps=[previous_applications_groupby_agg],
-                                           adapter=Adapter({'table': E('application', 'X'),
-                                                            'features': E(previous_applications_groupby_agg.name,
-                                                                          'features_table')}),
-                                           experiment_directory=config.pipeline.experiment_directory, **kwargs)
-
     if train_mode:
-        previous_applications_agg_merge_valid = Step(name='previous_applications_agg_merge_valid{}'.format(suffix),
-                                                     transformer=previous_applications_agg_merge,
-                                                     input_data=['application'],
-                                                     input_steps=[previous_applications_groupby_agg],
-                                                     adapter=Adapter({'table': E('application', 'X_valid'),
-                                                                      'features': E(
-                                                                          previous_applications_groupby_agg.name,
-                                                                          'features_table')}),
-                                                     experiment_directory=config.pipeline.experiment_directory,
-                                                     **kwargs)
-        return previous_applications_agg_merge, previous_applications_agg_merge_valid
+        previous_application_groupby_agg_valid = Step(name='previous_application_groupby_valid_agg{}'.format(suffix),
+                                                 transformer=fe.GroupbyAggregate(**config.previous_application),
+                                                 input_steps=[previous_application_cleaned_valid],
+                                                 adapter=Adapter({'table': E(previous_application_cleaned_valid.name,
+                                                                             'previous_application')}),
+                                                 experiment_directory=config.pipeline.experiment_directory, **kwargs)
+        return previous_application_groupby_agg, previous_application_groupby_agg_valid
     else:
-        return previous_applications_agg_merge
+        return previous_application_groupby_agg
 
 
 def _application_cleaning(config, train_mode, suffix, **kwargs):
@@ -982,104 +927,123 @@ def _application(config, train_mode, suffix, **kwargs):
         return application
 
 
-def _bureau_cleaning(config, **kwargs):
-    bureau_cleaning = Step(name='bureau_cleaning',
-                           transformer=dc.BureauCleaning(**config.preprocessing.impute_missing),
-                           input_data=['bureau'],
-                           adapter=Adapter({'bureau': E('bureau', 'X')}),
-                           experiment_directory=config.pipeline.experiment_directory,
-                           **kwargs)
+def _bureau_cleaning(config, train_mode, suffix, **kwargs):
+    bureau_cleaning = Step(name='bureau_cleaning{}'.format(suffix),
+                                transformer=dc.BureauCleaning(**config.preprocessing.impute_missing),
+                                input_data=['bureau'],
+                                adapter=Adapter({'bureau': E('bureau', 'X')}),
+                                experiment_directory=config.pipeline.experiment_directory,
+                                **kwargs)
+    if train_mode:
+        bureau_cleaning_valid = Step(name='bureau_cleaning_valid{}'.format(suffix),
+                                          transformer=dc.BureauCleaning(**config.preprocessing.impute_missing),
+                                          input_data=['bureau'],
+                                          adapter=Adapter({'bureau': E('bureau', 'X_valid')}),
+                                          experiment_directory=config.pipeline.experiment_directory,
+                                          **kwargs)
+        return bureau_cleaning, bureau_cleaning_valid
+    else:
+        return bureau_cleaning
 
-    return bureau_cleaning
 
+def _bureau(config, train_mode, suffix, **kwargs):
+    if train_mode:
+        bureau_cleaned, bureau_cleaned_valid = _bureau_cleaning(config, train_mode, suffix, **kwargs)
+    else:
+        bureau_cleaned = _bureau_cleaning(config, train_mode, suffix, **kwargs)
 
-def _bureau(bureau_cleaned, config, train_mode, suffix, **kwargs):
-    bureau_hand_crafted = Step(name='bureau_hand_crafted',
+    bureau_hand_crafted = Step(name='bureau_hand_crafted{}'.format(suffix),
                                transformer=fe.BureauFeatures(**config.bureau),
                                input_steps=[bureau_cleaned],
                                adapter=Adapter({'bureau': E(bureau_cleaned.name, 'bureau')}),
                                experiment_directory=config.pipeline.experiment_directory,
                                **kwargs)
 
-    bureau_hand_crafted_merge = Step(name='bureau_hand_crafted_merge{}'.format(suffix),
-                                     transformer=fe.GroupbyMerge(**config.bureau),
-                                     input_data=['application'],
-                                     input_steps=[bureau_hand_crafted],
-                                     adapter=Adapter({'table': E('application', 'X'),
-                                                      'features': E(bureau_hand_crafted.name, 'features_table')}),
-                                     experiment_directory=config.pipeline.experiment_directory, **kwargs)
-
     if train_mode:
-        bureau_hand_crafted_merge_valid = Step(name='bureau_hand_crafted_merge_valid{}'.format(suffix),
-                                               transformer=bureau_hand_crafted_merge,
-                                               input_data=['application'],
-                                               input_steps=[bureau_hand_crafted],
-                                               adapter=Adapter({'table': E('application', 'X_valid'),
-                                                                'features': E(bureau_hand_crafted.name,
-                                                                              'features_table')}),
-                                               experiment_directory=config.pipeline.experiment_directory, **kwargs)
-        return bureau_hand_crafted_merge, bureau_hand_crafted_merge_valid
+        bureau_hand_crafted_valid = Step(name='bureau_hand_crafted_valid{}'.format(suffix),
+                                   transformer=fe.BureauFeatures(**config.bureau),
+                                   input_steps=[bureau_cleaned_valid],
+                                   adapter=Adapter({'bureau': E(bureau_cleaned_valid.name, 'bureau')}),
+                                   experiment_directory=config.pipeline.experiment_directory,
+                                   **kwargs)
+        return bureau_hand_crafted, bureau_hand_crafted_valid
     else:
-        return bureau_hand_crafted_merge
+        return bureau_hand_crafted
 
 
-def _bureau_balance_cleaning(config, **kwargs):
-    bureau_cleaning = Step(name='bureau_balance_cleaning',
-                           transformer=dc.BureauBalanceCleaning(**config.preprocessing.impute_missing),
-                           input_data=['bureau_balance'],
-                           adapter=Adapter({'bureau_balance': E('bureau_balance', 'X')}),
-                           experiment_directory=config.pipeline.experiment_directory,
-                           **kwargs)
+def _bureau_balance_cleaning(config, train_mode, suffix, **kwargs):
+    bureau_balance_cleaning = Step(name='bureau_balance_cleaning{}'.format(suffix),
+                                transformer=dc.BureauBalanceCleaning(**config.preprocessing.impute_missing),
+                                input_data=['bureau_balance'],
+                                adapter=Adapter({'bureau_balance': E('bureau_balance', 'X')}),
+                                experiment_directory=config.pipeline.experiment_directory,
+                                **kwargs)
+    if train_mode:
+        bureau_balance_cleaning_valid = Step(name='bureau_balance_cleaning_valid{}'.format(suffix),
+                                          transformer=dc.BureauBalanceCleaning(**config.preprocessing.impute_missing),
+                                          input_data=['bureau_balance'],
+                                          adapter=Adapter({'bureau_balance': E('bureau_balance', 'X_valid')}),
+                                          experiment_directory=config.pipeline.experiment_directory,
+                                          **kwargs)
+        return bureau_balance_cleaning, bureau_balance_cleaning_valid
+    else:
+        return bureau_balance_cleaning
 
-    return bureau_cleaning
 
+def _bureau_balance(config, train_mode, suffix, **kwargs):
+    if train_mode:
+        bureau_balance_cleaned, bureau_balance_cleaned_valid = _bureau_balance_cleaning(config, train_mode, suffix, **kwargs)
+    else:
+        bureau_balance_cleaned = _bureau_balance_cleaning(config, train_mode, suffix, **kwargs)
 
-def _bureau_balance(bureau_balance_cleaned, config, train_mode, suffix, **kwargs):
-    bureau_balance_hand_crafted = Step(name='bureau_balance_hand_crafted',
+    bureau_balance_hand_crafted = Step(name='bureau_balance_hand_crafted{}'.format(suffix),
                                        transformer=fe.BureauBalanceFeatures(**config.bureau_balance),
                                        input_steps=[bureau_balance_cleaned],
                                        adapter=Adapter({'bureau_balance': E(bureau_balance_cleaned.name,
                                                                             'bureau_balance')}),
                                        experiment_directory=config.pipeline.experiment_directory, **kwargs)
 
-    bureau_balance_hand_crafted_merge = Step(name='bureau_balance_hand_crafted_merge{}'.format(suffix),
-                                             transformer=fe.GroupbyMerge(**config.bureau_balance),
-                                             input_data=['application'],
-                                             input_steps=[bureau_balance_hand_crafted],
-                                             adapter=Adapter({'table': E('application', 'X'),
-                                                              'features': E(bureau_balance_hand_crafted.name,
-                                                                            'features_table')}),
-                                             experiment_directory=config.pipeline.experiment_directory, **kwargs)
-
     if train_mode:
-        bureau_balance_hand_crafted_merge_valid = Step(name='bureau_balance_hand_crafted_merge_valid{}'.format(suffix),
-                                                       transformer=bureau_balance_hand_crafted_merge,
-                                                       input_data=['application'],
-                                                       input_steps=[bureau_balance_hand_crafted],
-                                                       adapter=Adapter({'table': E('application', 'X_valid'),
-                                                                        'features': E(bureau_balance_hand_crafted.name,
-                                                                                      'features_table')}),
-                                                       experiment_directory=config.pipeline.experiment_directory,
-                                                       **kwargs)
-        return bureau_balance_hand_crafted_merge, bureau_balance_hand_crafted_merge_valid
+        bureau_balance_hand_crafted_valid = Step(name='bureau_balance_hand_crafted_valid{}'.format(suffix),
+                                           transformer=fe.BureauBalanceFeatures(**config.bureau_balance),
+                                           input_steps=[bureau_balance_cleaned_valid],
+                                           adapter=Adapter({'bureau_balance': E(bureau_balance_cleaned_valid.name,
+                                                                                'bureau_balance')}),
+                                           experiment_directory=config.pipeline.experiment_directory, **kwargs)
+
+        return bureau_balance_hand_crafted, bureau_balance_hand_crafted_valid
     else:
-        return bureau_balance_hand_crafted_merge
+        return bureau_balance_hand_crafted
 
 
-def _credit_card_balance_cleaning(config, **kwargs):
-    credit_card_balance_cleaning = Step(name='credit_card_balance_cleaning',
-                                        transformer=dc.CreditCardCleaning(
-                                            **config.preprocessing.impute_missing),
-                                        input_data=['credit_card_balance'],
-                                        adapter=Adapter({'credit_card': E('credit_card_balance', 'X')}),
-                                        experiment_directory=config.pipeline.experiment_directory,
-                                        **kwargs)
+def _credit_card_balance_cleaning(config, train_mode, suffix, **kwargs):
+    credit_card_balance_cleaning = Step(name='credit_card_balance_cleaning{}'.format(suffix),
+                                transformer=dc.CreditCardCleaning(**config.preprocessing.impute_missing),
+                                input_data=['credit_card_balance'],
+                                adapter=Adapter({'credit_card': E('credit_card_balance', 'X')}),
+                                experiment_directory=config.pipeline.experiment_directory,
+                                **kwargs)
+    if train_mode:
+        credit_card_balance_cleaning_valid = Step(name='credit_card_balance_cleaning_valid{}'.format(suffix),
+                                          transformer=dc.CreditCardCleaning(**config.preprocessing.impute_missing),
+                                          input_data=['credit_card_balance'],
+                                          adapter=Adapter({'credit_card': E('credit_card_balance', 'X_valid')}),
+                                          experiment_directory=config.pipeline.experiment_directory,
+                                          **kwargs)
+        return credit_card_balance_cleaning, credit_card_balance_cleaning_valid
+    else:
+        return credit_card_balance_cleaning
 
-    return credit_card_balance_cleaning
 
+def _credit_card_balance(config, train_mode, suffix, **kwargs):
+    if train_mode:
+        credit_card_balance_cleaned, credit_card_balance_cleaned_valid = _credit_card_balance_cleaning(config,
+                                                                                                       train_mode,
+                                                                                                       suffix, **kwargs)
+    else:
+        credit_card_balance_cleaned = _credit_card_balance_cleaning(config, train_mode, suffix, **kwargs)
 
-def _credit_card_balance(credit_card_balance_cleaned, config, train_mode, suffix, **kwargs):
-    credit_card_balance_hand_crafted = Step(name='credit_card_balance_hand_crafted',
+    credit_card_balance_hand_crafted = Step(name='credit_card_balance_hand_crafted{}'.format(suffix),
                                             transformer=fe.CreditCardBalanceFeatures(**config.credit_card_balance),
                                             input_steps=[credit_card_balance_cleaned],
                                             adapter=Adapter({'credit_card': E(credit_card_balance_cleaned.name,
@@ -1087,92 +1051,92 @@ def _credit_card_balance(credit_card_balance_cleaned, config, train_mode, suffix
                                             experiment_directory=config.pipeline.experiment_directory,
                                             **kwargs)
 
-    credit_card_balance_hand_crafted_merge = Step(name='credit_card_balance_hand_crafted_merge{}'.format(suffix),
-                                                  transformer=fe.GroupbyMerge(**config.credit_card_balance),
-                                                  input_data=['application'],
-                                                  input_steps=[credit_card_balance_hand_crafted],
-                                                  adapter=Adapter({'table': E('application', 'X'),
-                                                                   'features': E(credit_card_balance_hand_crafted.name,
-                                                                                 'features_table')}),
-                                                  experiment_directory=config.pipeline.experiment_directory, **kwargs)
-
     if train_mode:
-        credit_card_balance_hand_crafted_merge_valid = Step(
-            name='credit_card_balance_hand_crafted_merge_valid{}'.format(suffix),
-            transformer=credit_card_balance_hand_crafted_merge,
-            input_data=['application'],
-            input_steps=[credit_card_balance_hand_crafted],
-            adapter=Adapter({'table': E('application', 'X_valid'),
-                             'features': E(credit_card_balance_hand_crafted.name,
-                                           'features_table')}),
-            experiment_directory=config.pipeline.experiment_directory, **kwargs)
-        return credit_card_balance_hand_crafted_merge, credit_card_balance_hand_crafted_merge_valid
+        credit_card_balance_hand_crafted_valid = Step(name='credit_card_balance_hand_crafted_valid{}'.format(suffix),
+                                                transformer=fe.CreditCardBalanceFeatures(**config.credit_card_balance),
+                                                input_steps=[credit_card_balance_cleaned_valid],
+                                                adapter=Adapter({'credit_card': E(credit_card_balance_cleaned_valid.name,
+                                                                                  'credit_card')}),
+                                                experiment_directory=config.pipeline.experiment_directory,
+                                                **kwargs)
+        return credit_card_balance_hand_crafted, credit_card_balance_hand_crafted_valid
     else:
-        return credit_card_balance_hand_crafted_merge
+        return credit_card_balance_hand_crafted
 
 
-def _pos_cash_balance_cleaning(config, **kwargs):
-    credit_card_balance_cleaning = Step(name='pos_cash_balance_cleaning',
-                                        transformer=dc.PosCashCleaning(
-                                            **config.preprocessing.impute_missing),
-                                        input_data=['pos_cash_balance'],
-                                        adapter=Adapter({'pos_cash': E('pos_cash_balance', 'X')}),
-                                        experiment_directory=config.pipeline.experiment_directory,
-                                        **kwargs)
+def _pos_cash_balance_cleaning(config, train_mode, suffix, **kwargs):
+    pos_cash_balance_cleaning = Step(name='pos_cash_balance_cleaning{}'.format(suffix),
+                                transformer=dc.PosCashCleaning(**config.preprocessing.impute_missing),
+                                input_data=['pos_cash_balance'],
+                                adapter=Adapter({'pos_cash': E('pos_cash_balance', 'X')}),
+                                experiment_directory=config.pipeline.experiment_directory,
+                                **kwargs)
+    if train_mode:
+        pos_cash_balance_cleaning_valid = Step(name='pos_cash_balance_cleaning_valid{}'.format(suffix),
+                                          transformer=dc.PosCashCleaning(),
+                                          input_data=['pos_cash_balance'],
+                                          adapter=Adapter({'pos_cash': E('pos_cash_balance', 'X_valid')}),
+                                          experiment_directory=config.pipeline.experiment_directory,
+                                          **kwargs)
+        return pos_cash_balance_cleaning, pos_cash_balance_cleaning_valid
+    else:
+        return pos_cash_balance_cleaning
 
-    return credit_card_balance_cleaning
 
+def _pos_cash_balance(config, train_mode, suffix, **kwargs):
+    if train_mode:
+        pos_cash_balance_cleaned, pos_cash_balance_cleaned_valid = _pos_cash_balance_cleaning(config, train_mode, suffix, **kwargs)
+    else:
+        pos_cash_balance_cleaned = _pos_cash_balance_cleaning(config, train_mode, suffix, **kwargs)
 
-def _pos_cash_balance(pos_cash_balance_cleaned, config, train_mode, suffix, **kwargs):
-    pos_cash_balance_hand_crafted = Step(name='pos_cash_balance_hand_crafted',
+    pos_cash_balance_hand_crafted = Step(name='pos_cash_balance_hand_crafted{}'.format(suffix),
                                          transformer=fe.POSCASHBalanceFeatures(**config.pos_cash_balance),
                                          input_steps=[pos_cash_balance_cleaned],
                                          adapter=Adapter({'pos_cash': E(pos_cash_balance_cleaned.name, 'pos_cash')}),
                                          experiment_directory=config.pipeline.experiment_directory,
                                          **kwargs)
 
-    pos_cash_balance_hand_crafted_merge = Step(name='pos_cash_balance_hand_crafted_merge{}'.format(suffix),
-                                               transformer=fe.GroupbyMerge(**config.pos_cash_balance),
-                                               input_data=['application'],
-                                               input_steps=[pos_cash_balance_hand_crafted],
-                                               adapter=Adapter({'table': E('application', 'X'),
-                                                                'features': E(pos_cash_balance_hand_crafted.name,
-                                                                              'features_table')}),
-                                               experiment_directory=config.pipeline.experiment_directory, **kwargs)
-
     if train_mode:
-        pos_cash_balance_hand_crafted_merge_valid = Step(
-            name='pos_cash_balance_hand_crafted_merge_valid{}'.format(suffix),
-            transformer=pos_cash_balance_hand_crafted_merge,
-            input_data=['application'],
-            input_steps=[pos_cash_balance_hand_crafted],
-            adapter=Adapter({'table': E('application', 'X_valid'),
-                             'features': E(
-                                 pos_cash_balance_hand_crafted.name,
-                                 'features_table')}),
-            experiment_directory=config.pipeline.experiment_directory,
-            **kwargs)
-        return pos_cash_balance_hand_crafted_merge, pos_cash_balance_hand_crafted_merge_valid
+        pos_cash_balance_hand_crafted_valid = Step(name='pos_cash_balance_hand_crafted_valid{}'.format(suffix),
+                                             transformer=fe.POSCASHBalanceFeatures(**config.pos_cash_balance),
+                                             input_steps=[pos_cash_balance_cleaned_valid],
+                                             adapter=Adapter(
+                                                 {'pos_cash': E(pos_cash_balance_cleaned_valid.name, 'pos_cash')}),
+                                             experiment_directory=config.pipeline.experiment_directory,
+                                             **kwargs)
+        return pos_cash_balance_hand_crafted, pos_cash_balance_hand_crafted_valid
     else:
-        return pos_cash_balance_hand_crafted_merge
+        return pos_cash_balance_hand_crafted
 
 
-def _previous_application_cleaning(config, **kwargs):
-    previous_application_cleaning = Step(name='previous_application_cleaning',
-                                         transformer=dc.PreviousApplicationCleaning(
-                                             **config.preprocessing.impute_missing),
-                                         input_data=['previous_application'],
-                                         adapter=Adapter({'previous_application': E('previous_application', 'X')}),
-                                         experiment_directory=config.pipeline.experiment_directory,
-                                         **kwargs)
+def _previous_application_cleaning(config, train_mode, suffix, **kwargs):
+    previous_application_cleaning = Step(name='previous_application_cleaning{}'.format(suffix),
+                                transformer=dc.PreviousApplicationCleaning(**config.preprocessing.impute_missing),
+                                input_data=['previous_application'],
+                                adapter=Adapter({'previous_application': E('previous_application', 'X')}),
+                                experiment_directory=config.pipeline.experiment_directory,
+                                **kwargs)
+    if train_mode:
+        previous_application_cleaning_valid = Step(name='previous_application_cleaning_valid{}'.format(suffix),
+                                          transformer=dc.PreviousApplicationCleaning(**config.preprocessing.impute_missing),
+                                          input_data=['previous_application'],
+                                          adapter=Adapter({'previous_application': E('previous_application', 'X_valid')}),
+                                          experiment_directory=config.pipeline.experiment_directory,
+                                          **kwargs)
+        return previous_application_cleaning, previous_application_cleaning_valid
+    else:
+        return previous_application_cleaning
 
-    return previous_application_cleaning
 
+def _previous_application(config, train_mode, suffix, **kwargs):
+    if train_mode:
+        previous_application_cleaned, previous_application_cleaned_valid = _previous_application_cleaning(config, train_mode, suffix, **kwargs)
+    else:
+        previous_application_cleaned = _previous_application_cleaning(config, train_mode, suffix, **kwargs)
 
-def _previous_application(previous_application_cleaned, config, train_mode, suffix, **kwargs):
-    previous_applications_hand_crafted = Step(name='previous_applications_hand_crafted',
+    previous_application_hand_crafted = Step(name='previous_application_hand_crafted{}'.format(suffix),
                                               transformer=fe.PreviousApplicationFeatures(
-                                                  **config.previous_applications),
+                                                  **config.previous_application),
                                               input_steps=[previous_application_cleaned],
                                               adapter=Adapter(
                                                   {'prev_applications': E(previous_application_cleaned.name,
@@ -1180,79 +1144,66 @@ def _previous_application(previous_application_cleaned, config, train_mode, suff
                                               experiment_directory=config.pipeline.experiment_directory,
                                               **kwargs)
 
-    previous_applications_hand_crafted_merge = Step(name='previous_applications_hand_crafted_merge{}'.format(suffix),
-                                                    transformer=fe.GroupbyMerge(**config.previous_applications),
-                                                    input_data=['application'],
-                                                    input_steps=[previous_applications_hand_crafted],
-                                                    adapter=Adapter({'table': E('application', 'X'),
-                                                                     'features': E(
-                                                                         previous_applications_hand_crafted.name,
-                                                                         'features_table')}),
-                                                    experiment_directory=config.pipeline.experiment_directory, **kwargs)
-
     if train_mode:
-        previous_applications_hand_crafted_merge_valid = Step(
-            name='previous_applications_hand_crafted_merge_valid{}'.format(suffix),
-            transformer=previous_applications_hand_crafted_merge,
-            input_data=['application'],
-            input_steps=[previous_applications_hand_crafted],
-            adapter=Adapter({'table': E('application', 'X_valid'),
-                             'features': E(
-                                 previous_applications_hand_crafted.name,
-                                 'features_table')}),
-            experiment_directory=config.pipeline.experiment_directory,
-            **kwargs)
-        return previous_applications_hand_crafted_merge, previous_applications_hand_crafted_merge_valid
+        previous_application_hand_crafted_valid = Step(name='previous_application_hand_crafted_valid{}'.format(suffix),
+                                                  transformer=fe.PreviousApplicationFeatures(
+                                                      **config.previous_application),
+                                                  input_steps=[previous_application_cleaned_valid],
+                                                  adapter=Adapter(
+                                                      {'prev_applications': E(previous_application_cleaned_valid.name,
+                                                                              'previous_application')}),
+                                                  experiment_directory=config.pipeline.experiment_directory,
+                                                  **kwargs)
+        return previous_application_hand_crafted, previous_application_hand_crafted_valid
     else:
-        return previous_applications_hand_crafted_merge
+        return previous_application_hand_crafted
 
 
-def _installment_payments_cleaning(config, **kwargs):
-    installment_payments_cleaning = Step(name='installment_payments_cleaning',
-                                         transformer=dc.InstallmentPaymentsCleaning(
-                                             **config.preprocessing.impute_missing),
-                                         input_data=['installments_payments'],
-                                         adapter=Adapter({'installments': E('installments_payments', 'X')}),
-                                         experiment_directory=config.pipeline.experiment_directory,
-                                         **kwargs)
+def _installments_payments_cleaning(config, train_mode, suffix, **kwargs):
+    installments_payments_cleaning = Step(name='installments_payments_cleaning{}'.format(suffix),
+                                transformer=dc.InstallmentPaymentsCleaning(**config.preprocessing.impute_missing),
+                                input_data=['installments_payments'],
+                                adapter=Adapter({'installments': E('installments_payments', 'X')}),
+                                experiment_directory=config.pipeline.experiment_directory,
+                                **kwargs)
+    if train_mode:
+        installments_payments_cleaning_valid = Step(name='installments_payments_cleaning_valid{}'.format(suffix),
+                                          transformer=dc.InstallmentPaymentsCleaning(**config.preprocessing.impute_missing),
+                                          input_data=['installments_payments'],
+                                          adapter=Adapter({'installments': E('installments_payments', 'X_valid')}),
+                                          experiment_directory=config.pipeline.experiment_directory,
+                                          **kwargs)
+        return installments_payments_cleaning, installments_payments_cleaning_valid
+    else:
+        return installments_payments_cleaning
 
-    return installment_payments_cleaning
 
+def _installment_payments(config, train_mode, suffix, **kwargs):
+    if train_mode:
+        installments_payments_cleaned, installments_payments_cleaned_valid = _installments_payments_cleaning(config, train_mode, suffix, **kwargs)
+    else:
+        installments_payments_cleaned = _installments_payments_cleaning(config, train_mode, suffix, **kwargs)
 
-def _installment_payments(installment_payments_cleaned, config, train_mode, suffix, **kwargs):
-    installment_payments_hand_crafted = Step(name='installment_payments_hand_crafted',
+    installment_payments_hand_crafted = Step(name='installment_payments_hand_crafted{}'.format(suffix),
                                              transformer=fe.InstallmentPaymentsFeatures(**config.installments_payments),
-                                             input_steps=[installment_payments_cleaned],
-                                             adapter=Adapter({'installments': E(installment_payments_cleaned.name,
+                                             input_steps=[installments_payments_cleaned],
+                                             adapter=Adapter({'installments': E(installments_payments_cleaned.name,
                                                                                 'installments')}),
                                              experiment_directory=config.pipeline.experiment_directory,
                                              **kwargs)
 
-    installment_payments_hand_crafted_merge = Step(name='installment_payments_hand_crafted_merge{}'.format(suffix),
-                                                   transformer=fe.GroupbyMerge(**config.installments_payments),
-                                                   input_data=['application'],
-                                                   input_steps=[installment_payments_hand_crafted],
-                                                   adapter=Adapter({'table': E('application', 'X'),
-                                                                    'features': E(
-                                                                        installment_payments_hand_crafted.name,
-                                                                        'features_table')}),
-                                                   experiment_directory=config.pipeline.experiment_directory, **kwargs)
-
     if train_mode:
-        installment_payments_hand_crafted_merge_valid = Step(
-            name='installment_payments_hand_crafted_merge_valid{}'.format(suffix),
-            transformer=installment_payments_hand_crafted_merge,
-            input_data=['application'],
-            input_steps=[installment_payments_hand_crafted],
-            adapter=Adapter({'table': E('application', 'X_valid'),
-                             'features': E(
-                                 installment_payments_hand_crafted.name,
-                                 'features_table')}),
-            experiment_directory=config.pipeline.experiment_directory,
-            **kwargs)
-        return installment_payments_hand_crafted_merge, installment_payments_hand_crafted_merge_valid
+        installment_payments_hand_crafted_valid = Step(name='installment_payments_hand_crafted_valid{}'.format(suffix),
+                                                 transformer=fe.InstallmentPaymentsFeatures(
+                                                     **config.installments_payments),
+                                                 input_steps=[installments_payments_cleaned_valid],
+                                                 adapter=Adapter({'installments': E(installments_payments_cleaned_valid.name,
+                                                                                    'installments')}),
+                                                 experiment_directory=config.pipeline.experiment_directory,
+                                                 **kwargs)
+        return installment_payments_hand_crafted, installment_payments_hand_crafted_valid
     else:
-        return installment_payments_hand_crafted_merge
+        return installment_payments_hand_crafted
 
 
 def _fillna(fill_value, **kwargs):

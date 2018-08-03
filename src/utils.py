@@ -159,7 +159,7 @@ def safe_div(a, b):
 
 
 def split_table(table, ref_tables, id_column):
-    tables = []
-    for ref_table in ref_tables:
-        tables.append(table[table.id_column.isin(ref_table.id_column)])
+    tables = [table[table[id_column].isin(ref_table[id_column])] for ref_table in ref_tables]
+    if len(tables) == 1:
+        return tables[0]
     return tables
